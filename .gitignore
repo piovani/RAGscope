@@ -1,0 +1,23 @@
+# Binaries
+/bin/
+*.exe
+*.test
+
+# Coverage
+*.out
+coverage.*
+
+# Local env and secrets
+.env
+.env.*
+!.env.example
+
+# Data that should not be versioned
+/data/raw/*
+!/data/raw/.gitkeep
+/experiments/results/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

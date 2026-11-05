@@ -1,0 +1,40 @@
+name: ragscope
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ragscope}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ragscope}
+      POSTGRES_DB: ${POSTGRES_DB:-ragscope}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ragscope}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  tei-embed:
+    profiles: ["models"]
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-latest
+    command: ["--model-id", "BAAI/bge-m3"]
+    ports:
+      - "8081:80"
+    volumes:
+      - tei-cache:/data
+
+  tei-rerank:
+    profiles: ["models"]
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-latest
+    command: ["--model-id", "BAAI/bge-reranker-v2-m3"]
+    ports:
+      - "8082:80"
+    volumes:
+      - tei-cache:/data
+
+volumes:
+  pgdata:
+  tei-cache:
