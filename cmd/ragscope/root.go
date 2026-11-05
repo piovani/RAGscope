@@ -23,19 +23,8 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.AddCommand(newIngestCmd(), newEvalCmd(), newServeCmd(), newReportCmd(), newValidateCmd())
+	root.AddCommand(newIngestCmd(), newAskCmd(), newEvalCmd(), newServeCmd(), newReportCmd(), newValidateCmd())
 	return root
-}
-
-func newIngestCmd() *cobra.Command {
-	var cfgPath string
-	cmd := &cobra.Command{
-		Use:   "ingest",
-		Short: "Parse, chunk, embed and index the corpus",
-		RunE:  func(*cobra.Command, []string) error { return errNotImplemented },
-	}
-	cmd.Flags().StringVarP(&cfgPath, "config", "c", "", "experiment config file")
-	return cmd
 }
 
 func newEvalCmd() *cobra.Command {

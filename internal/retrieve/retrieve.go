@@ -1,4 +1,4 @@
-// Package retrieve implements candidate retrieval: vector, BM25 and hybrid (RRF) fusion.
+// Package retrieve finds the chunks most relevant to a question.
 package retrieve
 
 import (
