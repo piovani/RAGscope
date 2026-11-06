@@ -7,16 +7,19 @@ import (
 	"slices"
 
 	"github.com/piovani/RAGscope/internal/domain"
-	"github.com/piovani/RAGscope/internal/tei"
+	"github.com/piovani/RAGscope/internal/httpjson"
 )
+
+// batchSize is the server's default limit of texts per request.
+const batchSize = 32
 
 // TEI scores candidates with a cross-encoder served by Text Embeddings Inference.
 type TEI struct {
-	client *tei.Client
+	client *httpjson.Client
 }
 
 func NewTEI(url string) *TEI {
-	return &TEI{client: tei.New(url)}
+	return &TEI{client: httpjson.New(url)}
 }
 
 func (t *TEI) Name() string { return "tei" }
@@ -26,8 +29,8 @@ func (t *TEI) Rerank(ctx context.Context, query string, candidates []domain.Scor
 
 	// The cross-encoder scores each text on its own, so scores from different
 	// batches can be compared and sorted together.
-	for start := 0; start < len(candidates); start += tei.BatchSize {
-		end := min(start+tei.BatchSize, len(candidates))
+	for start := 0; start < len(candidates); start += batchSize {
+		end := min(start+batchSize, len(candidates))
 		batch := candidates[start:end]
 
 		scores, err := t.score(ctx, query, batch)

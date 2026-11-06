@@ -12,9 +12,7 @@ coverage.*
 .env.*
 !.env.example
 
-# Data that should not be versioned
-/data/raw/*
-!/data/raw/.gitkeep
+# Experiment results are generated, not versioned
 /experiments/results/
 
 # OS / editor

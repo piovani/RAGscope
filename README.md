@@ -151,7 +151,8 @@ A small evaluation subset runs in CI. A pull request that drops a headline metri
 | HTTP API | stdlib `net/http` with the enhanced `ServeMux` routing |
 | Storage | PostgreSQL + `pgvector` via `pgx` |
 | Lexical search | BM25 (in-process Go implementation, or Postgres-side extension — to be decided in an ADR) |
-| Embeddings / reranker | Hugging Face Text Embeddings Inference (TEI) sidecar, behind a Go interface; hosted providers as alternatives |
+| Embeddings | Ollama (`bge-m3`), running on the host so it can use Apple Silicon, behind a Go interface |
+| Reranker | Hugging Face Text Embeddings Inference (TEI) sidecar, behind a Go interface (x86 only for now) |
 | LLM providers | Provider interface with adapters: Anthropic, OpenAI-compatible, Ollama |
 | Orchestration | Hand-written, thin pipeline — **no LangChain-style framework in the core**, so every stage is explicit and measurable |
 | Evaluation | Metrics and LLM-judge implemented in Go (existing eval tooling is Python-centric) |
@@ -196,7 +197,7 @@ RAGscope/
 
 ## Roadmap
 
-- [ ] **Phase 0 — Foundation:** Go module, CLI skeleton, Docker Compose (Postgres + pgvector, TEI), CI (lint, test, vuln check).
+- [ ] **Phase 0 — Foundation:** Go module, CLI skeleton, Docker Compose (Postgres + pgvector), Ollama for embeddings, CI (lint, test, vuln check).
 - [ ] **Phase 1 — Baseline:** ingest one or two laws, fixed-size chunking, vector search, answers with citations, minimal API.
 - [ ] **Phase 2 — Evaluation first:** 50-question golden set, retrieval + generation metrics, experiment runner, first baseline report. **No optimization happens before this exists.**
 - [ ] **Phase 3 — Ablations:** structural chunking, hybrid search, reranking, query rewriting, model comparisons — each documented with results and trade-offs.

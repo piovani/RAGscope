@@ -6,6 +6,7 @@ require (
 	github.com/jackc/pgx/v5 v5.12.0
 	github.com/pgvector/pgvector-go v0.4.1
 	github.com/spf13/cobra v1.10.2
+	golang.org/x/net v0.62.0
 	golang.org/x/text v0.43.0
 	gopkg.in/yaml.v3 v3.0.1
 )

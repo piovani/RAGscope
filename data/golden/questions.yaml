@@ -1,0 +1,224 @@
+# Golden set for the LGPD (Lei nº 13.709/2018), text from data/raw/lgpd.txt.
+#
+# DRAFT: written from the cleaned law text. Review the questions and answers
+# before trusting any score. Run `ragscope golden` after editing it.
+#
+# Mix: definitions (Art. 5), principles, legal bases, rights, security,
+# sanctions and the ANPD; three questions that need more than one snippet;
+# four questions the law cannot answer (unanswerable).
+
+# --- Definitions (Art. 5) ---
+
+- id: lgpd-001
+  question: O que a LGPD define como dado pessoal?
+  answer: Informação relacionada a pessoa natural identificada ou identificável.
+  evidence:
+    - "dado pessoal: informação relacionada a pessoa natural identificada ou identificável"
+
+- id: lgpd-002
+  question: O que é dado pessoal sensível?
+  answer: Dado pessoal sobre origem racial ou étnica, convicção religiosa, opinião política, filiação a sindicato ou organização religiosa, filosófica ou política, saúde, vida sexual, dado genético ou biométrico, quando vinculado a uma pessoa natural.
+  evidence:
+    - "dado pessoal sensível: dado pessoal sobre origem racial ou étnica, convicção religiosa, opinião política"
+
+- id: lgpd-003
+  question: Quem é o controlador de dados?
+  answer: A pessoa natural ou jurídica, de direito público ou privado, a quem competem as decisões referentes ao tratamento de dados pessoais.
+  evidence:
+    - "a quem competem as decisões referentes ao tratamento de dados pessoais"
+
+- id: lgpd-004
+  question: O que faz o operador de dados?
+  answer: Realiza o tratamento de dados pessoais em nome do controlador.
+  evidence:
+    - "que realiza o tratamento de dados pessoais em nome do controlador"
+
+- id: lgpd-005
+  question: O que é consentimento segundo a lei?
+  answer: Manifestação livre, informada e inequívoca pela qual o titular concorda com o tratamento de seus dados pessoais para uma finalidade determinada.
+  evidence:
+    - "manifestação livre, informada e inequívoca pela qual o titular concorda com o tratamento de seus dados pessoais para uma finalidade determinada"
+
+- id: lgpd-006
+  question: O que significa anonimização?
+  answer: Utilização de meios técnicos razoáveis e disponíveis no momento do tratamento, pelos quais um dado perde a possibilidade de associação, direta ou indireta, a um indivíduo.
+  evidence:
+    - "anonimização: utilização de meios técnicos razoáveis e disponíveis no momento do tratamento"
+
+# --- Principles (Art. 6) and legal bases (Arts. 7, 8, 14) ---
+
+- id: lgpd-007
+  question: Que princípios as atividades de tratamento de dados devem observar?
+  answer: A boa-fé e os princípios da finalidade, adequação, necessidade, livre acesso, qualidade dos dados, transparência, segurança, prevenção, não discriminação e responsabilização e prestação de contas.
+  evidence:
+    - "As atividades de tratamento de dados pessoais deverão observar a boa-fé e os seguintes princípios"
+
+- id: lgpd-008
+  question: O que significa o princípio da necessidade?
+  answer: Limitação do tratamento ao mínimo necessário para a realização de suas finalidades, com dados pertinentes, proporcionais e não excessivos.
+  evidence:
+    - "limitação do tratamento ao mínimo necessário para a realização de suas finalidades"
+
+- id: lgpd-009
+  question: O tratamento de dados pode ser feito para proteger o crédito?
+  answer: Sim, a proteção do crédito é uma das hipóteses em que o tratamento é permitido.
+  evidence:
+    - "para a proteção do crédito, inclusive quanto ao disposto na legislação pertinente"
+
+- id: lgpd-010
+  question: Dados pessoais podem ser tratados para a tutela da saúde?
+  answer: Sim, exclusivamente em procedimento realizado por profissionais de saúde, serviços de saúde ou autoridade sanitária.
+  evidence:
+    - "para a tutela da saúde, exclusivamente, em procedimento realizado por profissionais de saúde, serviços de saúde ou autoridade sanitária"
+
+- id: lgpd-011
+  question: De que forma o consentimento deve ser fornecido?
+  answer: Por escrito ou por outro meio que demonstre a manifestação de vontade do titular.
+  evidence:
+    - "deverá ser fornecido por escrito ou por outro meio que demonstre a manifestação de vontade do titular"
+
+- id: lgpd-012
+  question: Quem precisa dar o consentimento para o tratamento de dados de crianças?
+  answer: Pelo menos um dos pais ou o responsável legal, de forma específica e em destaque.
+  evidence:
+    - "com o consentimento específico e em destaque dado por pelo menos um dos pais ou pelo responsável legal"
+
+# --- End of processing (Arts. 15, 16) ---
+
+- id: lgpd-013
+  question: Em que situações o tratamento de dados pessoais termina?
+  answer: Quando a finalidade foi alcançada ou os dados deixaram de ser necessários, no fim do período de tratamento, por comunicação do titular (incluindo revogação do consentimento) ou por determinação da autoridade nacional.
+  evidence:
+    - "O término do tratamento de dados pessoais ocorrerá nas seguintes hipóteses"
+
+- id: lgpd-014
+  question: Depois do fim do tratamento, os dados podem ser conservados?
+  answer: Em regra são eliminados, mas a conservação é autorizada para cumprimento de obrigação legal, estudo por órgão de pesquisa, transferência a terceiro e uso exclusivo do controlador (com anonimização).
+  evidence:
+    - "autorizada a conservação para as seguintes finalidades"
+
+# --- Rights of the data subject (Arts. 18, 20) ---
+
+- id: lgpd-015
+  question: O titular pode pedir a portabilidade dos seus dados?
+  answer: Sim, a outro fornecedor de serviço ou produto, mediante requisição expressa, de acordo com a regulamentação da autoridade nacional.
+  evidence:
+    - "portabilidade dos dados a outro fornecedor de serviço ou produto, mediante requisição expressa"
+
+- id: lgpd-016
+  question: O titular pode exigir a correção de dados errados?
+  answer: Sim, tem direito à correção de dados incompletos, inexatos ou desatualizados.
+  evidence:
+    - "correção de dados incompletos, inexatos ou desatualizados"
+
+- id: lgpd-017
+  question: O atendimento ao pedido do titular pode ser cobrado?
+  answer: Não, o requerimento é atendido sem custos para o titular, nos prazos e termos previstos em regulamento.
+  evidence:
+    - "será atendido sem custos para o titular, nos prazos e nos termos previstos em regulamento"
+
+- id: lgpd-018
+  question: É possível pedir a revisão de uma decisão tomada por algoritmo?
+  answer: Sim, o titular pode solicitar a revisão de decisões tomadas unicamente com base em tratamento automatizado que afetem seus interesses.
+  evidence:
+    - "direito a solicitar a revisão de decisões tomadas unicamente com base em tratamento automatizado de dados pessoais"
+
+# --- Transfers, records, DPO, liability, security (Arts. 33 to 48) ---
+
+- id: lgpd-019
+  question: Quando a transferência internacional de dados é permitida?
+  answer: Somente nos casos previstos, como para países com grau de proteção adequado ou quando o controlador oferece e comprova garantias, por exemplo cláusulas contratuais específicas ou cláusulas-padrão.
+  evidence:
+    - "A transferência internacional de dados pessoais somente é permitida nos seguintes casos"
+
+- id: lgpd-020
+  question: O controlador precisa manter registro das operações de tratamento?
+  answer: Sim, controlador e operador devem manter registro das operações, especialmente quando baseadas no legítimo interesse.
+  evidence:
+    - "devem manter registro das operações de tratamento de dados pessoais que realizarem"
+
+- id: lgpd-021
+  question: Quem indica o encarregado e quais são as atividades dele?
+  answer: O controlador indica o encarregado, que aceita reclamações e comunicações dos titulares, presta esclarecimentos e adota providências, entre outras atividades.
+  evidence:
+    - "O controlador deverá indicar encarregado pelo tratamento de dados pessoais"
+    - "aceitar reclamações e comunicações dos titulares, prestar esclarecimentos e adotar providências"
+
+- id: lgpd-022
+  question: Quem é obrigado a reparar o dano causado por tratamento irregular de dados?
+  answer: O controlador ou o operador que, no tratamento de dados, causar dano patrimonial, moral, individual ou coletivo em violação à legislação.
+  evidence:
+    - "causar a outrem dano patrimonial, moral, individual ou coletivo, em violação à legislação de proteção de dados pessoais, é obrigado a repará-lo"
+
+- id: lgpd-023
+  question: Que medidas de segurança os agentes de tratamento devem adotar?
+  answer: Medidas de segurança, técnicas e administrativas, aptas a proteger os dados pessoais de acessos não autorizados e de situações acidentais ou ilícitas de destruição, perda, alteração, comunicação ou qualquer forma de tratamento inadequado.
+  evidence:
+    - "devem adotar medidas de segurança, técnicas e administrativas aptas a proteger os dados pessoais de acessos não autorizados"
+
+- id: lgpd-024
+  question: O controlador precisa avisar sobre um incidente de segurança?
+  answer: Sim, deve comunicar à autoridade nacional e ao titular a ocorrência de incidente de segurança que possa acarretar risco ou dano relevante aos titulares.
+  evidence:
+    - "deverá comunicar à autoridade nacional e ao titular a ocorrência de incidente de segurança"
+
+# --- Sanctions and the ANPD (Arts. 52, 55-A, 55-J) ---
+
+- id: lgpd-025
+  question: Qual é o limite da multa simples por infração à LGPD?
+  answer: Até 2% do faturamento da pessoa jurídica de direito privado, grupo ou conglomerado no Brasil no último exercício, excluídos os tributos, limitada no total a R$ 50.000.000,00 por infração.
+  evidence:
+    - "multa simples, de até 2% (dois por cento) do faturamento da pessoa jurídica de direito privado"
+
+- id: lgpd-026
+  question: Por quanto tempo o funcionamento de um banco de dados pode ser suspenso como sanção?
+  answer: Pelo período máximo de 6 meses, prorrogável por igual período, até a regularização da atividade de tratamento.
+  evidence:
+    - "suspensão parcial do funcionamento do banco de dados a que se refere a infração pelo período máximo de 6 (seis) meses"
+
+- id: lgpd-027
+  question: O que é a ANPD?
+  answer: A Agência Nacional de Proteção de Dados, autarquia de natureza especial criada pela lei.
+  evidence:
+    - "Fica criada a Agência Nacional de Proteção de Dados (ANPD), autarquia de natureza especial"
+
+# --- Questions that need more than one snippet ---
+
+- id: lgpd-028
+  question: Qual a diferença entre dado anonimizado e dado pessoal, e quando um dado anonimizado passa a ser tratado como pessoal?
+  answer: Dado anonimizado é relativo a titular que não possa ser identificado, e por isso não é considerado dado pessoal, salvo quando o processo de anonimização for revertido.
+  evidence:
+    - "dado anonimizado: dado relativo a titular que não possa ser identificado"
+    - "Os dados anonimizados não serão considerados dados pessoais para os fins desta Lei"
+
+- id: lgpd-029
+  question: O que são dados sensíveis e em que hipóteses eles podem ser tratados?
+  answer: São dados sobre origem racial ou étnica, convicção religiosa, opinião política, saúde, vida sexual, dado genético ou biométrico, entre outros, e só podem ser tratados nas hipóteses do art. 11, como o consentimento específico do titular.
+  evidence:
+    - "dado pessoal sensível: dado pessoal sobre origem racial ou étnica, convicção religiosa, opinião política"
+    - "O tratamento de dados pessoais sensíveis somente poderá ocorrer nas seguintes hipóteses"
+
+- id: lgpd-030
+  question: Quais direitos o titular tem sobre seus dados e como ele os exerce?
+  answer: Pode obter do controlador, a qualquer momento, confirmação do tratamento, acesso, correção, anonimização, bloqueio ou eliminação, portabilidade, entre outros, mediante requerimento expresso do titular ou de representante legalmente constituído.
+  evidence:
+    - "tem direito a obter do controlador, em relação aos dados do titular por ele tratados, a qualquer momento e mediante requisição"
+    - "serão exercidos mediante requerimento expresso do titular ou de representante legalmente constituído"
+
+# --- Unanswerable: the law does not say ---
+
+- id: lgpd-031
+  question: Qual é a alíquota do imposto de renda para pessoa física?
+  unanswerable: true
+
+- id: lgpd-032
+  question: Quem é o atual diretor-presidente da ANPD?
+  unanswerable: true
+
+- id: lgpd-033
+  question: Qual é a pena de prisão para quem vaza dados pessoais?
+  unanswerable: true
+
+- id: lgpd-034
+  question: Como o GDPR europeu trata o direito ao esquecimento?
+  unanswerable: true

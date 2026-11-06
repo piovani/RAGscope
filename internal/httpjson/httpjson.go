@@ -1,7 +1,7 @@
-// Package tei is a small HTTP client for Hugging Face Text Embeddings
-// Inference. Embeddings and reranking use the same server software, so both
-// share this code.
-package tei
+// Package httpjson is a tiny client for servers that talk JSON over HTTP POST
+// (Ollama, the reranker). It exists so each adapter does not repeat the same
+// request, status check and decoding code.
+package httpjson
 
 import (
 	"bytes"
@@ -14,9 +14,6 @@ import (
 	"time"
 )
 
-// BatchSize is TEI's default limit of inputs per request.
-const BatchSize = 32
-
 type Client struct {
 	url  string
 	http *http.Client
@@ -25,7 +22,7 @@ type Client struct {
 func New(url string) *Client {
 	return &Client{
 		url:  strings.TrimRight(url, "/"),
-		http: &http.Client{Timeout: 2 * time.Minute},
+		http: &http.Client{Timeout: 5 * time.Minute}, // local models can be slow on the first call
 	}
 }
 
@@ -44,17 +41,17 @@ func (c *Client) Post(ctx context.Context, path string, request, response any) e
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("call TEI server: %w", err)
+		return fmt.Errorf("call %s: %w", c.url, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return fmt.Errorf("TEI server returned %s: %s", resp.Status, msg)
+		return fmt.Errorf("%s returned %s: %s", c.url, resp.Status, msg)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
-		return fmt.Errorf("read TEI response: %w", err)
+		return fmt.Errorf("read answer from %s: %w", c.url, err)
 	}
 	return nil
 }

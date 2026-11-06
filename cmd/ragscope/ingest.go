@@ -37,7 +37,7 @@ func newIngestCmd() *cobra.Command {
 			}
 			defer db.Close()
 
-			n, err := pipeline.Ingest(cmd.Context(), docs, chunker, newEmbedder(), db, exp.Collection())
+			n, err := pipeline.Ingest(cmd.Context(), docs, chunker, newEmbedder(exp.Embedding.Model), db, exp.Collection())
 			if err != nil {
 				return err
 			}

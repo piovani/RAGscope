@@ -17,17 +17,11 @@ services:
       timeout: 3s
       retries: 10
 
-  tei-embed:
-    profiles: ["models"]
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-latest
-    command: ["--model-id", "BAAI/bge-m3"]
-    ports:
-      - "8081:80"
-    volumes:
-      - tei-cache:/data
-
+  # Reranker (Hugging Face Text Embeddings Inference).
+  # The image only exists for x86. On Apple Silicon it does not start, so
+  # experiments with a reranker need an x86 machine for now.
   tei-rerank:
-    profiles: ["models"]
+    profiles: ["reranker"]
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-latest
     command: ["--model-id", "BAAI/bge-reranker-v2-m3"]
     ports:

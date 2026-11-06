@@ -27,8 +27,9 @@ func openStore(ctx context.Context) (*store.Store, error) {
 	return store.Open(ctx, url)
 }
 
-func newEmbedder() embed.Embedder {
-	return embed.NewTEI(env("TEI_EMBED_URL", "http://localhost:8081"))
+// newEmbedder uses the model named in the experiment, served by Ollama.
+func newEmbedder(model string) embed.Embedder {
+	return embed.NewOllama(env("OLLAMA_URL", "http://localhost:11434"), model)
 }
 
 func newChunker(c config.Chunking) (ingest.Chunker, error) {
@@ -45,7 +46,7 @@ func newChunker(c config.Chunking) (ingest.Chunker, error) {
 // mode, and the reranker on top of it when there is one.
 func newRetriever(ctx context.Context, exp *config.Experiment, db *store.Store) (retrieve.Retriever, error) {
 	collection := exp.Collection()
-	vector := retrieve.Vector{Embedder: newEmbedder(), Searcher: db, Collection: collection}
+	vector := retrieve.Vector{Embedder: newEmbedder(exp.Embedding.Model), Searcher: db, Collection: collection}
 
 	var retriever retrieve.Retriever
 	switch exp.Retrieval.Mode {
