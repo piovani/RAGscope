@@ -1,10 +1,12 @@
 # Golden set for the LGPD (Lei nº 13.709/2018), text from data/raw/lgpd.txt.
 #
-# Two batches, 72 questions in total (64 answerable, 8 unanswerable):
+# Three batches, 105 questions in total (95 answerable, 10 unanswerable):
 #   - lgpd-001 to lgpd-034: written from the article wording, reviewed by the author;
 #   - lgpd-035 to lgpd-072: written in everyday language, reviewed by an
-#     independent agent and corrected.
-# Both were drafted by an AI model from the law text, so they may share its biases.
+#     independent agent and corrected;
+#   - lgpd-073 to lgpd-105: cover the articles that had no question, reviewed
+#     by a second independent agent and corrected.
+# All were drafted by an AI model from the law text, so they may share its biases.
 #
 # Run `ragscope golden` after editing: it checks every evidence snippet exists.
 #
@@ -487,4 +489,257 @@
 
 - id: lgpd-072
   question: Que países a LGPD considera com nível adequado de proteção de dados?
+  unanswerable: true
+
+# ============================================================
+# Third batch (lgpd-073 to lgpd-105)
+# Covers articles that had no question yet: purpose and foundations,
+# public-health research, rights in court, public authorities,
+# international transfer rules, good practices, ANPD structure and
+# final provisions. Reviewed by an independent agent and corrected.
+# ============================================================
+
+# --- Purpose and scope (Arts. 1, 2, 17) ---
+
+- id: lgpd-073
+  question: Para que serve a LGPD?
+  answer: Proteger os direitos fundamentais de liberdade e de privacidade e o livre desenvolvimento da personalidade da pessoa natural, no tratamento de dados pessoais por pessoa natural ou por pessoa jurídica de direito público ou privado, inclusive nos meios digitais.
+  evidence:
+    - "com o objetivo de proteger os direitos fundamentais de liberdade e de privacidade e o livre desenvolvimento da personalidade da pessoa natural"
+
+- id: lgpd-074
+  question: Estados e municípios também precisam seguir a LGPD?
+  answer: Sim. As normas gerais da lei são de interesse nacional e devem ser observadas pela União, pelos Estados, pelo Distrito Federal e pelos Municípios.
+  evidence:
+    - "As normas gerais contidas nesta Lei são de interesse nacional e devem ser observadas pela União, Estados, Distrito Federal e Municípios"
+
+- id: lgpd-075
+  question: Em que valores se baseia a proteção de dados pessoais no Brasil?
+  answer: Nos fundamentos do art. 2º, entre eles o respeito à privacidade, a autodeterminação informativa, a liberdade de expressão, de informação, de comunicação e de opinião, a inviolabilidade da intimidade, da honra e da imagem, o desenvolvimento econômico e tecnológico e a inovação, a livre iniciativa, a livre concorrência e a defesa do consumidor, e os direitos humanos.
+  evidence:
+    - "A disciplina da proteção de dados pessoais tem como fundamentos"
+    - "a autodeterminação informativa"
+
+- id: lgpd-076
+  question: De quem são os dados pessoais, segundo a lei?
+  answer: Toda pessoa natural tem assegurada a titularidade de seus dados pessoais, e são garantidos os direitos fundamentais de liberdade, de intimidade e de privacidade.
+  evidence:
+    - "Toda pessoa natural tem assegurada a titularidade de seus dados pessoais"
+
+# --- Public-health research (Art. 13) ---
+
+- id: lgpd-077
+  question: Órgãos de pesquisa em saúde pública podem ter acesso a bases de dados pessoais? Em que condições?
+  answer: Podem. Os dados são tratados exclusivamente dentro do órgão e só para estudos e pesquisas, mantidos em ambiente controlado e seguro, com anonimização ou pseudonimização sempre que possível. O órgão é responsável pela segurança e não é permitida, em circunstância alguma, a transferência dos dados a terceiro.
+  evidence:
+    - "os órgãos de pesquisa poderão ter acesso a bases de dados pessoais, que serão tratados exclusivamente dentro do órgão e estritamente para a finalidade de realização de estudos e pesquisas"
+    - "mantidos em ambiente controlado e seguro"
+    - "não permitida, em circunstância alguma, a transferência dos dados a terceiro"
+
+- id: lgpd-078
+  question: O resultado de uma pesquisa de saúde pública pode mostrar dados pessoais das pessoas estudadas?
+  answer: Não. A divulgação dos resultados, ou de qualquer excerto do estudo, em nenhuma hipótese pode revelar dados pessoais.
+  evidence:
+    - "em nenhuma hipótese poderá revelar dados pessoais"
+
+- id: lgpd-079
+  question: O que é pseudonimização?
+  answer: É o tratamento pelo qual um dado perde a possibilidade de associação, direta ou indireta, a um indivíduo, a não ser pelo uso de informação adicional mantida separadamente pelo controlador em ambiente controlado e seguro.
+  evidence:
+    - "a pseudonimização é o tratamento por meio do qual um dado perde a possibilidade de associação, direta ou indireta, a um indivíduo"
+
+# --- Rights in practice (Arts. 21, 22, 45) ---
+
+- id: lgpd-080
+  question: Uma empresa pode usar contra mim dados sobre eu ter exercido um direito, como entrar na Justiça?
+  answer: Não. Os dados pessoais referentes ao exercício regular de direitos pelo titular não podem ser utilizados em seu prejuízo.
+  evidence:
+    - "Os dados pessoais referentes ao exercício regular de direitos pelo titular não podem ser utilizados em seu prejuízo"
+
+- id: lgpd-081
+  question: Posso defender meus direitos sobre dados na Justiça, junto com outras pessoas?
+  answer: Sim. A defesa dos interesses e dos direitos dos titulares pode ser exercida em juízo, individual ou coletivamente, conforme a legislação sobre os instrumentos de tutela individual e coletiva.
+  evidence:
+    - "A defesa dos interesses e dos direitos dos titulares de dados poderá ser exercida em juízo, individual ou coletivamente"
+
+- id: lgpd-082
+  question: A LGPD afasta as regras de responsabilidade do consumidor quando meus dados são violados numa compra?
+  answer: Não. O art. 45 mantém as hipóteses de violação do direito do titular nas relações de consumo sujeitas às regras de responsabilidade previstas na legislação pertinente.
+  evidence:
+    - "permanecem sujeitas às regras de responsabilidade previstas na legislação pertinente"
+
+# --- Public authorities (Arts. 24, 31, 32) ---
+
+- id: lgpd-083
+  question: Uma empresa pública que concorre no mercado segue as mesmas regras de uma empresa privada?
+  answer: Em regra sim, as empresas públicas e sociedades de economia mista que atuam em regime de concorrência recebem o mesmo tratamento das pessoas jurídicas de direito privado. Quando operacionalizam políticas públicas, recebem o tratamento dos órgãos e entidades do Poder Público.
+  evidence:
+    - "terão o mesmo tratamento dispensado às pessoas jurídicas de direito privado particulares"
+    - "quando estiverem operacionalizando políticas públicas e no âmbito da execução delas, terão o mesmo tratamento dispensado aos órgãos e às entidades do Poder Público"
+
+- id: lgpd-084
+  question: O que a autoridade pode fazer se um órgão público descumprir a lei de dados?
+  answer: "Pode enviar um informe com as medidas cabíveis para fazer cessar a violação (art. 31). Algumas sanções administrativas também podem ser aplicadas a órgãos e entidades públicas: advertência, publicização da infração, bloqueio e eliminação dos dados, suspensão e proibição de atividades (art. 52, §3º). A multa não está nessa lista."
+  evidence:
+    - "a autoridade nacional poderá enviar informe com medidas cabíveis para fazer cessar a violação"
+    - "poderá ser aplicado às entidades e aos órgãos públicos"
+
+- id: lgpd-085
+  question: A ANPD pode pedir que órgãos do governo publiquem relatório de impacto à proteção de dados?
+  answer: Pode solicitar a agentes do Poder Público a publicação de relatórios de impacto à proteção de dados pessoais e sugerir padrões e boas práticas (art. 32). A autoridade nacional também pode determinar ao controlador que elabore relatório de impacto à proteção de dados, inclusive de dados sensíveis (art. 38).
+  evidence:
+    - "solicitar a agentes do Poder Público a publicação de relatórios de impacto à proteção de dados pessoais"
+    - "poderá determinar ao controlador que elabore relatório de impacto à proteção de dados pessoais"
+
+# --- International transfers: who decides (Arts. 34, 35, 36) ---
+
+- id: lgpd-086
+  question: Como é decidido se outro país protege bem os dados pessoais?
+  answer: O nível de proteção do país estrangeiro ou do organismo internacional é avaliado pela autoridade nacional, que considera, entre outros pontos, a legislação em vigor, a natureza dos dados, a observância dos princípios e dos direitos dos titulares, as medidas de segurança e a existência de garantias judiciais e institucionais.
+  evidence:
+    - "será avaliado pela autoridade nacional, que levará em consideração"
+    - "a existência de garantias judiciais e institucionais para o respeito aos direitos de proteção de dados pessoais"
+
+- id: lgpd-087
+  question: Quem define e verifica as cláusulas contratuais usadas para enviar dados ao exterior?
+  answer: A autoridade nacional define o conteúdo das cláusulas-padrão contratuais e verifica cláusulas contratuais específicas, normas corporativas globais, selos, certificados e códigos de conduta. Ela pode designar organismos de certificação, que ficam sob sua fiscalização.
+  evidence:
+    - "A definição do conteúdo de cláusulas-padrão contratuais, bem como a verificação de cláusulas contratuais específicas"
+    - "A autoridade nacional poderá designar organismos de certificação"
+
+- id: lgpd-088
+  question: Se eu mudar as garantias que usei para transferir dados ao exterior, preciso avisar alguém?
+  answer: Sim. As alterações nas garantias apresentadas como suficientes devem ser comunicadas à autoridade nacional.
+  evidence:
+    - "As alterações nas garantias apresentadas como suficientes de observância dos princípios gerais de proteção e dos direitos do titular"
+
+# --- Duties of agents (Arts. 39, 49, 50) ---
+
+- id: lgpd-089
+  question: O operador pode tratar os dados como quiser?
+  answer: Não. O operador deve realizar o tratamento segundo as instruções fornecidas pelo controlador, que verifica a observância das próprias instruções e das normas sobre a matéria.
+  evidence:
+    - "O operador deverá realizar o tratamento segundo as instruções fornecidas pelo controlador"
+
+- id: lgpd-090
+  question: Os sistemas de uma empresa precisam ser feitos já pensando na proteção de dados?
+  answer: Sim. Os sistemas usados para o tratamento de dados pessoais devem ser estruturados de forma a atender aos requisitos de segurança, aos padrões de boas práticas e de governança e aos princípios gerais da lei (art. 49). As medidas de segurança devem ser observadas desde a fase de concepção do produto ou do serviço até a sua execução (art. 46, §2º).
+  evidence:
+    - "Os sistemas utilizados para o tratamento de dados pessoais devem ser estruturados de forma a atender aos requisitos de segurança, aos padrões de boas práticas e de governança"
+    - "desde a fase de concepção do produto ou do serviço até a sua execução"
+
+- id: lgpd-091
+  question: Uma empresa pode criar suas próprias regras de boas práticas de proteção de dados?
+  answer: Sim. Controladores e operadores, individualmente ou por meio de associações, podem formular regras de boas práticas e de governança. Elas devem ser publicadas e atualizadas periodicamente e podem ser reconhecidas e divulgadas pela autoridade nacional.
+  evidence:
+    - "poderão formular regras de boas práticas e de governança"
+    - "deverão ser publicadas e atualizadas periodicamente e poderão ser reconhecidas e divulgadas pela autoridade nacional"
+
+- id: lgpd-092
+  question: O que um programa de governança em privacidade deve ter, no mínimo, se a empresa decidir implementá-lo?
+  answer: "A adoção é facultativa: o controlador poderá implementar o programa. Se o fizer, ele deve, no mínimo e entre outros requisitos, demonstrar o comprometimento do controlador com processos e políticas internas, ser aplicável a todo o conjunto de dados sob seu controle, ser adaptado à estrutura, à escala e ao volume das operações, contar com planos de resposta a incidentes e remediação e ser atualizado com base em monitoramento contínuo."
+  evidence:
+    - "implementar programa de governança em privacidade que, no mínimo"
+    - "demonstre o comprometimento do controlador em adotar processos e políticas internas"
+    - "seja aplicável a todo o conjunto de dados pessoais que estejam sob seu controle"
+    - "seja adaptado à estrutura, à escala e ao volume de suas operações"
+    - "conte com planos de resposta a incidentes e remediação"
+    - "seja atualizado constantemente com base em informações obtidas a partir de monitoramento contínuo"
+
+# --- Fines (Arts. 53 and 54) ---
+
+- id: lgpd-093
+  question: Quem define a metodologia de cálculo do valor-base das multas e como ela é divulgada?
+  answer: A autoridade nacional, em regulamento próprio sobre sanções administrativas, que deve ser objeto de consulta pública. As metodologias devem ser previamente publicadas, para ciência dos agentes de tratamento.
+  evidence:
+    - "as metodologias que orientarão o cálculo do valor-base das sanções de multa"
+    - "devem ser previamente publicadas, para ciência dos agentes de tratamento"
+
+- id: lgpd-094
+  question: O que precisa constar na notificação de uma multa diária?
+  answer: No mínimo, a descrição da obrigação imposta, o prazo razoável e estipulado pelo órgão para o seu cumprimento e o valor da multa diária a ser aplicada pelo descumprimento.
+  evidence:
+    - "A intimação da sanção de multa diária deverá conter, no mínimo, a descrição da obrigação imposta, o prazo razoável e estipulado pelo órgão para o seu cumprimento e o valor da multa diária a ser aplicada pelo seu descumprimento"
+
+# --- Structure of the ANPD (Arts. 55-C, 55-D, 55-E, 58-A, 58-B) ---
+
+- id: lgpd-095
+  question: Quantos diretores tem a ANPD e por quanto tempo dura o mandato?
+  answer: O Conselho Diretor tem 5 diretores, incluído o Diretor-Presidente, e o mandato dos membros é de 4 anos.
+  evidence:
+    - "O Conselho Diretor da ANPD será composto de 5 (cinco) diretores, incluído o Diretor-Presidente"
+    - "O mandato dos membros do Conselho Diretor será de 4 (quatro) anos"
+
+- id: lgpd-096
+  question: Um diretor da ANPD pode ser demitido livremente pelo Presidente da República?
+  answer: Não. Os membros do Conselho Diretor somente perdem o cargo por renúncia, condenação judicial transitada em julgado ou pena de demissão decorrente de processo administrativo disciplinar.
+  evidence:
+    - "somente perderão seus cargos em virtude de renúncia, condenação judicial transitada em julgado ou pena de demissão decorrente de processo administrativo disciplinar"
+
+- id: lgpd-097
+  question: Quais são as partes que formam a ANPD?
+  answer: A ANPD é composta, entre outros órgãos, pelo Conselho Diretor (órgão máximo de direção), pelo Conselho Nacional de Proteção de Dados Pessoais e da Privacidade, pela Corregedoria, pela Ouvidoria, pela Procuradoria e pela Auditoria.
+  evidence:
+    - "Conselho Diretor, órgão máximo de direção"
+    - "II - Conselho Nacional de Proteção de Dados Pessoais e da Privacidade;"
+    - "III - Corregedoria"
+    - "IV - Ouvidoria"
+    - "V-A - Procuradoria"
+    - "V-B - Auditoria"
+
+- id: lgpd-098
+  question: Quantas pessoas formam o Conselho Nacional de Proteção de Dados e quem participa?
+  answer: "São 23 representantes, titulares e suplentes: 5 do Poder Executivo federal; 1 do Senado Federal; 1 da Câmara dos Deputados; 1 do Conselho Nacional de Justiça; 1 do Conselho Nacional do Ministério Público; 1 do Comitê Gestor da Internet no Brasil; 3 de entidades da sociedade civil com atuação relacionada a proteção de dados; 3 de instituições científicas, tecnológicas e de inovação; 3 de confederações sindicais do setor produtivo; 2 de entidades do setor empresarial; e 2 de entidades do setor laboral."
+  evidence:
+    - "será composto de 23 (vinte e três) representantes, titulares e suplentes"
+    - "1 (um) do Comitê Gestor da Internet no Brasil"
+    - "3 (três) de entidades da sociedade civil"
+    - "2 (dois) de entidades representativas do setor laboral"
+
+- id: lgpd-099
+  question: O que faz o Conselho Nacional de Proteção de Dados Pessoais e da Privacidade?
+  answer: Propõe diretrizes estratégicas e fornece subsídios para a Política Nacional de Proteção de Dados Pessoais e da Privacidade e para a atuação da ANPD, elabora relatórios anuais de avaliação da execução das ações da política, sugere ações à ANPD, elabora estudos e realiza debates e audiências públicas e dissemina o conhecimento sobre proteção de dados à população.
+  evidence:
+    - "propor diretrizes estratégicas e fornecer subsídios para a elaboração da Política Nacional de Proteção de Dados Pessoais e da Privacidade e para a atuação da ANPD"
+    - "elaborar relatórios anuais de avaliação da execução das ações"
+    - "sugerir ações a serem realizadas pela ANPD"
+    - "elaborar estudos e realizar debates e audiências públicas"
+    - "disseminar o conhecimento sobre a proteção de dados pessoais e da privacidade à população"
+
+# --- Final provisions (Arts. 61, 63, 64, 65) ---
+
+- id: lgpd-100
+  question: Como uma empresa estrangeira é notificada nos processos da LGPD?
+  answer: Ela é notificada e intimada de todos os atos processuais independentemente de procuração ou de disposição contratual ou estatutária, na pessoa do agente, representante ou responsável por sua filial, agência, sucursal, estabelecimento ou escritório instalado no Brasil.
+  evidence:
+    - "independentemente de procuração ou de disposição contratual ou estatutária, na pessoa do agente ou representante ou pessoa responsável por sua filial, agência, sucursal, estabelecimento ou escritório instalado no Brasil"
+
+- id: lgpd-101
+  question: O que acontece com os bancos de dados que já existiam antes de a LGPD valer?
+  answer: A autoridade nacional estabelecerá normas sobre a adequação progressiva de bancos de dados constituídos até a data de entrada em vigor da lei, considerando a complexidade das operações de tratamento e a natureza dos dados.
+  evidence:
+    - "adequação progressiva de bancos de dados constituídos até a data de entrada em vigor desta Lei"
+
+- id: lgpd-102
+  question: A LGPD substitui as outras leis que protegem dados pessoais?
+  answer: Não. Os direitos e princípios da LGPD não excluem outros previstos no ordenamento jurídico brasileiro relacionados à matéria ou nos tratados internacionais de que o Brasil seja parte.
+  evidence:
+    - "Os direitos e princípios expressos nesta Lei não excluem outros previstos no ordenamento jurídico pátrio"
+
+- id: lgpd-103
+  question: Quando as regras da LGPD passaram a valer?
+  answer: "Segundo a redação atual do art. 65, a vigência é escalonada: em 28 de dezembro de 2018 para os artigos sobre a ANPD e o Conselho (55-A a 55-L, 58-A e 58-B); em 1º de agosto de 2021 para os artigos 52, 53 e 54, sobre sanções; e 24 meses após a data de publicação da lei (14 de agosto de 2018) para os demais artigos. O texto compilado traz ainda a nota de que um dos dispositivos foi convertido na Lei nº 14.058, de 2020, e não informa a data final da vigência geral."
+  evidence:
+    - "dia 28 de dezembro de 2018, quanto aos arts. 55-A"
+    - "dia 1º de agosto de 2021, quanto aos arts. 52, 53 e 54"
+    - "24 (vinte e quatro) meses após a data de sua publicação, quanto aos demais artigos"
+
+# --- Unanswerable: the law touches the topic but does not give the detail ---
+
+- id: lgpd-104
+  question: Qual é o salário dos diretores da ANPD?
+  unanswerable: true
+
+- id: lgpd-105
+  question: Qual é o faturamento máximo para uma empresa ser considerada microempresa na LGPD?
   unanswerable: true
