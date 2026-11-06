@@ -10,7 +10,8 @@ import (
 )
 
 // Markdown writes a comparison table, best experiment first. When baseline is
-// not nil, two columns show how far each experiment is from it.
+// not nil, two columns show how far each experiment is from it, with a 95%
+// confidence interval so you can tell a real gain from luck.
 func Markdown(w io.Writer, reports []*eval.Report, baseline *eval.Report) {
 	ranked := slices.Clone(reports)
 	slices.SortFunc(ranked, func(a, b *eval.Report) int {
@@ -23,7 +24,7 @@ func Markdown(w io.Writer, reports []*eval.Report, baseline *eval.Report) {
 
 	fmt.Fprint(w, "| Experiment | Retriever | k | Hit rate | Recall | MRR | p95 (ms) |")
 	if baseline != nil {
-		fmt.Fprint(w, " Δ Recall | Δ MRR |")
+		fmt.Fprint(w, " Δ Recall [95% CI] | Δ MRR [95% CI] |")
 	}
 	fmt.Fprintln(w)
 
@@ -33,6 +34,7 @@ func Markdown(w io.Writer, reports []*eval.Report, baseline *eval.Report) {
 	}
 	fmt.Fprintln(w)
 
+	anyDelta, anySignificant := false, false
 	for _, r := range ranked {
 		final := r.Final()
 		fmt.Fprintf(w, "| %s | %s | %d | %.3f | %.3f | %.3f | %.0f |",
@@ -42,12 +44,23 @@ func Markdown(w io.Writer, reports []*eval.Report, baseline *eval.Report) {
 			if r == baseline {
 				fmt.Fprint(w, " baseline | baseline |")
 			} else {
-				fmt.Fprintf(w, " %+.3f | %+.3f |", final.Recall-baseline.Final().Recall, r.MRR-baseline.MRR)
+				recall, recallSig := delta(pairedDiffs(r, baseline, recallScore), final.Recall-baseline.Final().Recall)
+				mrr, mrrSig := delta(pairedDiffs(r, baseline, mrrScore), r.MRR-baseline.MRR)
+				fmt.Fprintf(w, " %s | %s |", recall, mrr)
+
+				anyDelta = true
+				anySignificant = anySignificant || recallSig || mrrSig
 			}
 		}
 		fmt.Fprintln(w)
 	}
 
+	if anyDelta {
+		fmt.Fprintln(w, "\n> Δ is the mean difference to the baseline over the same questions, with a 95% bootstrap interval.")
+		if anySignificant {
+			fmt.Fprintln(w, "> \\* The interval does not include 0, so the difference is unlikely to be luck.")
+		}
+	}
 	for _, warning := range Warnings(reports) {
 		fmt.Fprintf(w, "\n> **Warning:** %s.\n", warning)
 	}

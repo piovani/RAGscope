@@ -43,6 +43,7 @@ func newEvalCmd() *cobra.Command {
 				return err
 			}
 			report.Experiment = exp.Name
+			report.GoldenSet = eval.Fingerprint(questions)
 
 			out := cmd.OutOrStdout()
 			report.Print(out)

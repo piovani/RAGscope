@@ -77,6 +77,17 @@ func Warnings(reports []*eval.Report) []string {
 	if values := distinct(reports, func(r *eval.Report) int { return r.Questions }); len(values) > 1 {
 		warnings = append(warnings, fmt.Sprintf("the experiments were scored on different numbers of questions (%v). Was the golden set changed?", values))
 	}
+	// Reports from before the golden set was fingerprinted have none; skip them.
+	var versions []string
+	for _, r := range reports {
+		if r.GoldenSet != "" && !slices.Contains(versions, r.GoldenSet) {
+			versions = append(versions, r.GoldenSet)
+		}
+	}
+	if len(versions) > 1 {
+		slices.Sort(versions)
+		warnings = append(warnings, fmt.Sprintf("the experiments were scored on different versions of the golden set (%v). Run them again on the current one", versions))
+	}
 	return warnings
 }
 

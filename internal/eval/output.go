@@ -28,7 +28,7 @@ func (r *Report) Save(dir string) (string, error) {
 // Print shows a short summary for people reading the terminal.
 func (r *Report) Print(w io.Writer) {
 	fmt.Fprintf(w, "experiment: %s (retriever: %s)\n", r.Experiment, r.Retriever)
-	fmt.Fprintf(w, "questions:  %d scored, %d unanswerable skipped\n\n", r.Questions, r.Skipped)
+	fmt.Fprintf(w, "questions:  %d scored, %d unanswerable skipped (golden set %s)\n\n", r.Questions, r.Skipped, r.GoldenSet)
 
 	fmt.Fprintf(w, "  top-k   hit rate   recall\n")
 	for _, c := range r.Cutoffs {

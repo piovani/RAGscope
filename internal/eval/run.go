@@ -23,8 +23,9 @@ type Report struct {
 	Retriever   string           `json:"retriever"`
 	K           int              `json:"k"`
 	RunAt       time.Time        `json:"run_at"`
-	Questions   int              `json:"questions"` // answerable questions that were scored
-	Skipped     int              `json:"skipped"`   // unanswerable ones, not used in retrieval metrics
+	GoldenSet   string           `json:"golden_set,omitempty"` // Fingerprint of the questions used
+	Questions   int              `json:"questions"`            // answerable questions that were scored
+	Skipped     int              `json:"skipped"`              // unanswerable ones, not used in retrieval metrics
 	Cutoffs     []CutoffScore    `json:"cutoffs"`
 	MRR         float64          `json:"mrr"`
 	LatencyMean float64          `json:"latency_mean_ms"`
