@@ -1,0 +1,29 @@
+# Example golden set. Copy it to questions.yaml and write your own questions.
+#
+# How to write a question:
+#   - evidence: a short snippet copied WORD FOR WORD from the document in
+#     data/raw (case, line breaks and repeated spaces do not matter).
+#     A chunk is relevant if it contains the snippet.
+#   - a question that needs two different articles gets two snippets.
+#   - unanswerable: true is for questions the documents cannot answer. The
+#     system should refuse them. They need no evidence.
+#
+# Always run `ragscope golden` after editing: it checks that every snippet
+# really exists in the documents. The snippets below are only examples and
+# must match the exact text of your own .txt files.
+
+- id: lgpd-001
+  question: O que a LGPD considera como dado pessoal?
+  answer: Informação relacionada a pessoa natural identificada ou identificável.
+  evidence:
+    - "informação relacionada a pessoa natural identificada ou identificável"
+
+- id: lgpd-002
+  question: Quem é o controlador de dados?
+  answer: A pessoa natural ou jurídica, de direito público ou privado, a quem competem as decisões referentes ao tratamento de dados pessoais.
+  evidence:
+    - "a quem competem as decisões referentes ao tratamento de dados pessoais"
+
+- id: lgpd-003
+  question: Qual é a alíquota do imposto de renda para pessoa física?
+  unanswerable: true

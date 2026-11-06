@@ -37,12 +37,12 @@ func newIngestCmd() *cobra.Command {
 			}
 			defer db.Close()
 
-			n, err := pipeline.Ingest(cmd.Context(), docs, chunker, newEmbedder(), db, exp.Name)
+			n, err := pipeline.Ingest(cmd.Context(), docs, chunker, newEmbedder(), db, exp.Collection())
 			if err != nil {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "indexed %d chunks from %d documents into %q\n", n, len(docs), exp.Name)
+			fmt.Fprintf(cmd.OutOrStdout(), "indexed %d chunks from %d documents into %q\n", n, len(docs), exp.Collection())
 			return nil
 		},
 	}

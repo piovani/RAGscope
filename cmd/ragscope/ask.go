@@ -7,11 +7,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/piovani/RAGscope/internal/config"
-	"github.com/piovani/RAGscope/internal/retrieve"
 )
 
 // For now "ask" only shows what was retrieved. The answer from the LLM comes
-// in the next step.
+// in a later step.
 func newAskCmd() *cobra.Command {
 	var cfgPath string
 
@@ -24,9 +23,6 @@ func newAskCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if exp.Retrieval.Mode != "vector" {
-				return fmt.Errorf("retrieval mode %q is not implemented yet (only \"vector\")", exp.Retrieval.Mode)
-			}
 
 			db, err := openStore(cmd.Context())
 			if err != nil {
@@ -34,15 +30,19 @@ func newAskCmd() *cobra.Command {
 			}
 			defer db.Close()
 
-			retriever := retrieve.Vector{Embedder: newEmbedder(), Searcher: db, Collection: exp.Name}
-			results, err := retriever.Retrieve(cmd.Context(), args[0], exp.Retrieval.K)
+			retriever, err := newRetriever(cmd.Context(), exp, db)
+			if err != nil {
+				return err
+			}
+
+			results, err := retriever.Retrieve(cmd.Context(), args[0], exp.FinalK())
 			if err != nil {
 				return err
 			}
 
 			out := cmd.OutOrStdout()
 			if len(results) == 0 {
-				fmt.Fprintf(out, "nothing found. Did you run ingest for %q?\n", exp.Name)
+				fmt.Fprintf(out, "nothing found. Did you run ingest for %q?\n", exp.Collection())
 				return nil
 			}
 			for i, r := range results {

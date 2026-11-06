@@ -81,6 +81,46 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+func TestCollectionIgnoresRetrievalSettings(t *testing.T) {
+	a, err := Load(writeTemp(t, validYAML))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Same index, different retrieval: the two experiments must share a collection.
+	b, err := Load(writeTemp(t, strings.Replace(validYAML, "mode: hybrid", "mode: bm25", 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Collection() != b.Collection() {
+		t.Errorf("collections differ: %q and %q", a.Collection(), b.Collection())
+	}
+
+	// Different chunking: it needs its own index.
+	c, err := Load(writeTemp(t, strings.Replace(validYAML, "strategy: fixed", "strategy: structural", 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Collection() == c.Collection() {
+		t.Errorf("different chunking should not share the collection %q", a.Collection())
+	}
+}
+
+func TestFinalK(t *testing.T) {
+	withReranker, err := Load(writeTemp(t, validYAML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := withReranker.FinalK(); got != 5 {
+		t.Errorf("FinalK with reranker = %d, want its top_n (5)", got)
+	}
+
+	withReranker.Reranker = nil
+	if got := withReranker.FinalK(); got != 10 {
+		t.Errorf("FinalK without reranker = %d, want retrieval k (10)", got)
+	}
+}
+
 func TestLoadMissingFile(t *testing.T) {
 	t.Parallel()
 	if _, err := Load(filepath.Join(t.TempDir(), "nope.yaml")); err == nil {

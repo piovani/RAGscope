@@ -1,0 +1,16 @@
+# Ablation: only the chunking changes (fixed -> structural, one chunk per article).
+name: ablation-structural
+corpus: br-legislation-v1
+chunking:
+  strategy: structural
+  max_tokens: 512
+  overlap: 64
+embedding:
+  model: bge-m3
+retrieval:
+  mode: vector
+  k: 5
+generator:
+  provider: ollama
+  model: llama3.1
+  temperature: 0

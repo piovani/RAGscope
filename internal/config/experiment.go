@@ -48,6 +48,24 @@ type Generator struct {
 	Temperature float64 `yaml:"temperature"`
 }
 
+// Collection names where the experiment's chunks are stored. It depends only on
+// what changes the index (corpus, chunking and embedding model), not on the
+// experiment name. So experiments that differ only in retrieval, reranking or
+// generation share one index and need a single ingest.
+func (e *Experiment) Collection() string {
+	return fmt.Sprintf("%s_%s-%d-%d_%s",
+		e.Corpus, e.Chunking.Strategy, e.Chunking.MaxTokens, e.Chunking.Overlap, e.Embedding.Model)
+}
+
+// FinalK is how many chunks the experiment hands to the generator: what is left
+// after reranking, or the retrieval k when there is no reranker.
+func (e *Experiment) FinalK() int {
+	if e.Reranker != nil {
+		return e.Reranker.TopN
+	}
+	return e.Retrieval.K
+}
+
 var (
 	chunkStrategies = map[string]bool{"fixed": true, "recursive": true, "structural": true, "semantic": true}
 	retrievalModes  = map[string]bool{"vector": true, "bm25": true, "hybrid": true}

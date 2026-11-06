@@ -1,0 +1,17 @@
+# Ablation: only the retrieval changes (vector -> vector + BM25 merged with RRF).
+name: ablation-hybrid
+corpus: br-legislation-v1
+chunking:
+  strategy: fixed
+  max_tokens: 512
+  overlap: 64
+embedding:
+  model: bge-m3
+retrieval:
+  mode: hybrid
+  k: 5
+  fusion: rrf
+generator:
+  provider: ollama
+  model: llama3.1
+  temperature: 0

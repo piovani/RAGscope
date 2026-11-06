@@ -1,6 +1,6 @@
 # ADR 0001 — BM25 implementation
 
-**Status:** Proposed
+**Status:** Accepted (revisit if the corpus grows or recall on exact terms is poor)
 
 ## Context
 
@@ -14,14 +14,21 @@ Hybrid retrieval needs a lexical ranker next to vector search. Two options:
 | | In-process Go | Postgres-side |
 |---|---|---|
 | Fidelity to BM25 | Exact | `ts_rank` is not BM25; extension needed for exact |
-| Operational cost | Index rebuilt/loaded at startup | Lives next to the vectors, one datastore |
-| Portuguese stemming | Must implement or import | Built-in `portuguese` config |
+| Operational cost | Index built in memory at startup | Lives next to the vectors, one datastore |
+| Portuguese stemming | None (accents and stopwords only) | Built-in `portuguese` config |
 | Experiment flexibility (tune k1, b) | Easy | Harder |
 
 ## Decision
 
-_Pending._ Prototype both during Phase 3 and compare recall@k and latency on the golden set before choosing.
+In-process Go BM25 (`internal/retrieve/bm25.go`). The corpus is a few thousand
+chunks, so building the index takes milliseconds, and we get the real BM25
+formula with tunable `k1` and `b`.
 
 ## Consequences
 
-The `retrieve.Retriever` interface hides the choice, so the decision can be reversed without touching the pipeline.
+- No stemming: "dado" and "dados" are different terms. This probably lowers
+  BM25 recall on Portuguese. If the ablation shows it matters, a Portuguese
+  stemmer or the Postgres option is the next thing to try.
+- The index is rebuilt on every `eval`/`ask` run from the stored chunks.
+- The `retrieve.Retriever` interface hides the choice, so it can change
+  without touching the pipeline.

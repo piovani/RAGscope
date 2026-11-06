@@ -49,6 +49,14 @@ func TestReplaceAndSearch(t *testing.T) {
 		t.Errorf("metadata was lost: %v", got[1].Metadata)
 	}
 
+	all, err := s.Chunks(ctx, collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 2 || all[0].ID != "a" || all[1].Text != "pointing up" {
+		t.Errorf("Chunks = %+v, want a and b in document order", all)
+	}
+
 	// Replacing again must not keep the old rows.
 	if err := s.Replace(ctx, collection, chunks[:1], vectors[:1]); err != nil {
 		t.Fatal(err)

@@ -106,6 +106,27 @@ func (s *Store) Replace(ctx context.Context, collection string, chunks []domain.
 	return tx.Commit(ctx)
 }
 
+// Chunks returns every chunk of a collection, in document order. Retrievers
+// that live in memory (BM25) are built from it.
+func (s *Store) Chunks(ctx context.Context, collection string) ([]domain.Chunk, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, document_id, position, content, metadata
+		FROM chunks
+		WHERE collection = $1
+		ORDER BY document_id, position`,
+		collection,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list chunks: %w", err)
+	}
+
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Chunk, error) {
+		var c domain.Chunk
+		err := row.Scan(&c.ID, &c.DocumentID, &c.Index, &c.Text, &c.Metadata)
+		return c, err
+	})
+}
+
 // Search returns the k chunks closest to the vector, best first. The score is
 // cosine similarity (1 means the same direction).
 func (s *Store) Search(ctx context.Context, collection string, vector []float32, k int) ([]domain.ScoredChunk, error) {

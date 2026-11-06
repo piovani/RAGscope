@@ -1,0 +1,16 @@
+# Ablation: only the retrieval changes (vector -> BM25, words instead of meaning).
+name: ablation-bm25
+corpus: br-legislation-v1
+chunking:
+  strategy: fixed
+  max_tokens: 512
+  overlap: 64
+embedding:
+  model: bge-m3
+retrieval:
+  mode: bm25
+  k: 5
+generator:
+  provider: ollama
+  model: llama3.1
+  temperature: 0
