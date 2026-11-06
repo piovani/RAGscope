@@ -32,6 +32,14 @@ type Report struct {
 	Results     []QuestionResult `json:"results"`
 }
 
+// Final returns the scores at the report's own k, the one that counts.
+func (r *Report) Final() CutoffScore {
+	if len(r.Cutoffs) == 0 {
+		return CutoffScore{K: r.K}
+	}
+	return r.Cutoffs[len(r.Cutoffs)-1]
+}
+
 // Misses returns the questions where no evidence was found in the top k.
 func (r *Report) Misses() []QuestionResult {
 	var misses []QuestionResult

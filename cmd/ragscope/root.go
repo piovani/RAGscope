@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,9 +12,6 @@ import (
 	"github.com/piovani/RAGscope/internal/config"
 )
 
-// errNotImplemented marks commands that are planned but not built yet.
-var errNotImplemented = errors.New("not implemented yet (see the roadmap in README.md)")
-
 func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "ragscope",
@@ -25,14 +21,6 @@ func newRootCmd() *cobra.Command {
 	}
 	root.AddCommand(newIngestCmd(), newAskCmd(), newEvalCmd(), newGoldenCmd(), newServeCmd(), newReportCmd(), newValidateCmd())
 	return root
-}
-
-func newReportCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "report",
-		Short: "Generate a comparison report from stored results",
-		RunE:  func(*cobra.Command, []string) error { return errNotImplemented },
-	}
 }
 
 func newValidateCmd() *cobra.Command {
