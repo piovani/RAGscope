@@ -1,4 +1,4 @@
-.PHONY: help build test vet fmt tidy validate corpus up up-reranker rerank models down vuln clean
+.PHONY: help build test vet fmt tidy validate corpus up up-reranker rerank models down vuln lint clean
 
 help:
 	@echo "Targets:"
@@ -15,6 +15,7 @@ help:
 	@echo "  models      Download the Ollama models (bge-m3 embeddings, llama3.2:3b answers)"
 	@echo "  down        Stop all services"
 	@echo "  vuln        Run govulncheck"
+	@echo "  lint        Run golangci-lint"
 	@echo "  clean       Remove build output"
 
 build:
@@ -59,6 +60,9 @@ down:
 
 vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+lint:
+	golangci-lint run ./...
 
 clean:
 	rm -rf bin
