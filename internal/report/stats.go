@@ -45,7 +45,10 @@ func bootstrapMean(values []float64) (mean, low, high float64) {
 // pairedDiffs compares two experiments question by question. Both answered the
 // same questions, so for each one we take how much better exp did than base.
 // Questions only one of them scored are ignored.
-func pairedDiffs(exp, base *eval.Report, score func(res eval.QuestionResult, k int) float64) []float64 {
+//
+// k is how many positions to look at; 0 means each experiment's own k.
+func pairedDiffs(exp, base *eval.Report, k int, score func(res eval.QuestionResult, k int) float64) []float64 {
+	expK, baseK := orOwn(k, exp.K), orOwn(k, base.K)
 	baseByID := make(map[string]eval.QuestionResult, len(base.Results))
 	for _, res := range base.Results {
 		baseByID[res.ID] = res
@@ -54,14 +57,22 @@ func pairedDiffs(exp, base *eval.Report, score func(res eval.QuestionResult, k i
 	var diffs []float64
 	for _, res := range exp.Results {
 		if baseRes, ok := baseByID[res.ID]; ok {
-			diffs = append(diffs, score(res, exp.K)-score(baseRes, base.K))
+			diffs = append(diffs, score(res, expK)-score(baseRes, baseK))
 		}
 	}
 	return diffs
 }
 
 func recallScore(res eval.QuestionResult, k int) float64 { return res.Recall(k) }
-func mrrScore(res eval.QuestionResult, _ int) float64    { return res.ReciprocalRank() }
+func mrrScore(res eval.QuestionResult, k int) float64    { return res.ReciprocalRankAt(k) }
+
+// orOwn returns k, or the experiment's own k when k is 0.
+func orOwn(k, own int) int {
+	if k > 0 {
+		return k
+	}
+	return own
+}
 
 // delta formats a difference to the baseline, like "+0.200 [+0.067, +0.333] *".
 // The star means the interval does not include zero, so the difference is

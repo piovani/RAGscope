@@ -10,6 +10,7 @@ import (
 
 func newReportCmd() *cobra.Command {
 	var resultsDir, baselineName string
+	var k int
 
 	cmd := &cobra.Command{
 		Use:   "report",
@@ -29,12 +30,12 @@ func newReportCmd() *cobra.Command {
 				return fmt.Errorf("no results found for the baseline experiment %q", baselineName)
 			}
 
-			report.Markdown(cmd.OutOrStdout(), reports, baseline)
-			return nil
+			return report.Markdown(cmd.OutOrStdout(), reports, baseline, k)
 		},
 	}
 
 	cmd.Flags().StringVar(&resultsDir, "results", "experiments/results", "folder with the results saved by eval")
+	cmd.Flags().IntVar(&k, "k", 0, "look only at the top k results (default: each experiment's own k)")
 	cmd.Flags().StringVar(&baselineName, "baseline", "baseline", "experiment the others are compared to")
 	return cmd
 }

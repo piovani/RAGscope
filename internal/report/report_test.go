@@ -75,7 +75,7 @@ func TestMarkdownRanksAndComparesToBaseline(t *testing.T) {
 	reports := []*eval.Report{baseline, better}
 
 	var out bytes.Buffer
-	Markdown(&out, reports, baseline)
+	Markdown(&out, reports, baseline, 0)
 	text := out.String()
 
 	// The best experiment comes first.
@@ -94,7 +94,7 @@ func TestMarkdownRanksAndComparesToBaseline(t *testing.T) {
 
 func TestMarkdownWithoutBaselineHasNoDeltaColumns(t *testing.T) {
 	var out bytes.Buffer
-	Markdown(&out, []*eval.Report{result("a", now, 5, 20, 0.5, 0.4)}, nil)
+	Markdown(&out, []*eval.Report{result("a", now, 5, 20, 0.5, 0.4)}, nil, 0)
 
 	if strings.Contains(out.String(), "Δ") {
 		t.Errorf("unexpected delta columns:\n%s", out.String())

@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"math"
 	"strings"
 
 	"github.com/piovani/RAGscope/internal/domain"
@@ -63,9 +64,14 @@ func (r QuestionResult) Recall(k int) float64 {
 // ReciprocalRank is 1 divided by the position of the first relevant chunk
 // (1 if it came first, 0.5 if second...). It is 0 when nothing relevant came back.
 func (r QuestionResult) ReciprocalRank() float64 {
+	return r.ReciprocalRankAt(math.MaxInt)
+}
+
+// ReciprocalRankAt is the same, but only looks at the first k positions.
+func (r QuestionResult) ReciprocalRankAt(k int) float64 {
 	best := 0
 	for _, rank := range r.Ranks {
-		if rank > 0 && (best == 0 || rank < best) {
+		if rank > 0 && rank <= k && (best == 0 || rank < best) {
 			best = rank
 		}
 	}

@@ -63,7 +63,7 @@ func TestMarkdownMarksARealGain(t *testing.T) {
 	better := withResults(result("better", now, 5, 20, 1, 1), ones...)
 
 	var out bytes.Buffer
-	Markdown(&out, []*eval.Report{baseline, better}, baseline)
+	Markdown(&out, []*eval.Report{baseline, better}, baseline, 0)
 
 	text := out.String()
 	for _, want := range []string{"+1.000 [+1.000, +1.000] *", "does not include 0"} {
@@ -79,7 +79,7 @@ func TestMarkdownDoesNotMarkNoise(t *testing.T) {
 	other := withResults(result("other", now, 5, 4, 0.5, 0.5), 0, 0, 1, 1)
 
 	var out bytes.Buffer
-	Markdown(&out, []*eval.Report{baseline, other}, baseline)
+	Markdown(&out, []*eval.Report{baseline, other}, baseline, 0)
 
 	text := out.String()
 	if strings.Contains(text, " *") {
@@ -104,5 +104,30 @@ func TestWarningsForDifferentGoldenSets(t *testing.T) {
 	w := Warnings([]*eval.Report{a, b})
 	if len(w) != 1 || !strings.Contains(w[0], "versions of the golden set") {
 		t.Errorf("warnings = %v, want one about the golden set", w)
+	}
+}
+
+func TestScoresAtLooksOnlyAtTheFirstPositions(t *testing.T) {
+	// Evidence found at positions 1, 3 and 0 (never).
+	r := withResults(result("a", now, 5, 3, 0, 0), 1, 3, 0)
+
+	top1, err := ScoresAt(r, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if top1.K != 1 || top1.Recall != 1.0/3 || top1.MRR != 1.0/3 {
+		t.Errorf("top 1 = %+v, want recall and MRR of 1/3", top1)
+	}
+
+	top3, _ := ScoresAt(r, 3)
+	if top3.Recall != 2.0/3 || top3.HitRate != 2.0/3 {
+		t.Errorf("top 3 = %+v, want 2/3", top3)
+	}
+	if want := (1 + 1.0/3) / 3; top3.MRR != want {
+		t.Errorf("top 3 MRR = %v, want %v", top3.MRR, want)
+	}
+
+	if _, err := ScoresAt(r, 10); err == nil {
+		t.Error("asking for a top 10 when only 5 were retrieved should fail")
 	}
 }
