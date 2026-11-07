@@ -19,6 +19,7 @@ type Usage struct {
 	InputTokens  int
 	OutputTokens int
 	Latency      time.Duration
+	CostUSD      float64 // 0 for local models
 }
 
 // Response is the model answer plus accounting data.
