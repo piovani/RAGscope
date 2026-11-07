@@ -7,6 +7,7 @@ import (
 
 	"github.com/piovani/RAGscope/internal/config"
 	"github.com/piovani/RAGscope/internal/embed"
+	"github.com/piovani/RAGscope/internal/generate"
 	"github.com/piovani/RAGscope/internal/ingest"
 	"github.com/piovani/RAGscope/internal/rerank"
 	"github.com/piovani/RAGscope/internal/retrieve"
@@ -88,4 +89,12 @@ func newBM25(ctx context.Context, db *store.Store, collection string) (*retrieve
 		return nil, fmt.Errorf("collection %q is empty. Did you run ingest?", collection)
 	}
 	return retrieve.NewBM25(chunks), nil
+}
+
+// newGenerator builds the model that writes the answers, as set in the experiment.
+func newGenerator(g config.Generator) (*generate.Ollama, error) {
+	if g.Provider != "ollama" {
+		return nil, fmt.Errorf("generator provider %q is not implemented yet (only \"ollama\")", g.Provider)
+	}
+	return generate.NewOllama(env("OLLAMA_URL", "http://localhost:11434"), g.Model, g.Temperature), nil
 }
