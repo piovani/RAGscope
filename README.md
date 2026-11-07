@@ -152,7 +152,7 @@ A small evaluation subset runs in CI. A pull request that drops a headline metri
 | Storage | PostgreSQL + `pgvector` via `pgx` |
 | Lexical search | BM25 (in-process Go implementation, or Postgres-side extension — to be decided in an ADR) |
 | Embeddings | Ollama (`bge-m3`), running on the host so it can use Apple Silicon, behind a Go interface |
-| Reranker | Hugging Face Text Embeddings Inference (TEI) sidecar, behind a Go interface (x86 only for now) |
+| Reranker | Cross-encoder `bge-reranker-v2-m3` behind a Go interface. Hugging Face TEI in Docker on x86; on Apple Silicon `scripts/rerank_server.py` serves the same API |
 | LLM providers | Provider interface with adapters: Anthropic, OpenAI-compatible, Ollama |
 | Orchestration | Hand-written, thin pipeline — **no LangChain-style framework in the core**, so every stage is explicit and measurable |
 | Evaluation | Metrics and LLM-judge implemented in Go (existing eval tooling is Python-centric) |

@@ -18,8 +18,8 @@ services:
       retries: 10
 
   # Reranker (Hugging Face Text Embeddings Inference).
-  # The image only exists for x86. On Apple Silicon it does not start, so
-  # experiments with a reranker need an x86 machine for now.
+  # The image only exists for x86. On Apple Silicon use `make rerank`, which
+  # runs scripts/rerank_server.py with the same API on the same port.
   tei-rerank:
     profiles: ["reranker"]
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-latest

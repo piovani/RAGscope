@@ -1,4 +1,4 @@
-.PHONY: help build test vet fmt tidy validate corpus up up-reranker models down vuln clean
+.PHONY: help build test vet fmt tidy validate corpus up up-reranker rerank models down vuln clean
 
 help:
 	@echo "Targets:"
@@ -10,8 +10,9 @@ help:
 	@echo "  validate    Validate all experiment configs"
 	@echo "  corpus      Regenerate data/raw/lgpd.txt from data/sources"
 	@echo "  up          Start Postgres (pgvector)"
-	@echo "  up-reranker Start the TEI reranker too (x86 only)"
-	@echo "  models      Download the Ollama embedding model (bge-m3)"
+	@echo "  up-reranker Start the TEI reranker in Docker (x86 only)"
+	@echo "  rerank      Run the local reranker server (Apple Silicon; needs .venv)"
+	@echo "  models      Download the Ollama models (bge-m3 embeddings, llama3.2:3b answers)"
 	@echo "  down        Stop all services"
 	@echo "  vuln        Run govulncheck"
 	@echo "  clean       Remove build output"
@@ -43,9 +44,15 @@ up:
 up-reranker:
 	docker compose -f deployments/docker-compose.yml --profile reranker up -d
 
+# The TEI image only exists for x86. On Apple Silicon run the same API locally.
+# One-time setup: python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt
+rerank:
+	.venv/bin/python scripts/rerank_server.py
+
 # Ollama runs on the host (it uses the Mac GPU), not in Docker.
 models:
 	ollama pull bge-m3
+	ollama pull llama3.2:3b
 
 down:
 	docker compose -f deployments/docker-compose.yml --profile reranker down

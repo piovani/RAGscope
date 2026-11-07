@@ -1,0 +1,19 @@
+# Combination: structural chunking + hybrid retrieval, without a reranker.
+# It shares its index with ablation-structural and differs from
+# hybrid-rerank-structural only by the reranker, to isolate that effect.
+name: ablation-hybrid-structural
+corpus: br-legislation-v1
+chunking:
+  strategy: structural
+  max_tokens: 512
+  overlap: 64
+embedding:
+  model: bge-m3
+retrieval:
+  mode: hybrid
+  k: 5
+  fusion: rrf
+generator:
+  provider: ollama
+  model: llama3.2:3b
+  temperature: 0

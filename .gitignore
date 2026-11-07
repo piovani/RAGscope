@@ -1,3 +1,6 @@
+# Python environment for scripts/
+.venv/
+
 # Binaries
 /bin/
 *.exe
