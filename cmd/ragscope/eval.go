@@ -105,7 +105,7 @@ func newGoldenCmd() *cobra.Command {
 func newEvalAnswersCmd() *cobra.Command {
 	var cfgPath, goldenPath, resultsDir string
 	var limit int
-	var useJudge bool
+	var faithfulness, correctness bool
 
 	cmd := &cobra.Command{
 		Use:   "eval-answers",
@@ -127,10 +127,11 @@ func newEvalAnswersCmd() *cobra.Command {
 				return err
 			}
 			var judge eval.Judge
-			if useJudge {
+			if faithfulness || correctness {
 				// The same model plays the judge, because a bigger one does not fit in memory.
 				judge = eval.LLMJudge{Model: generator}
 			}
+			opts := eval.JudgeOptions{Faithfulness: faithfulness, Correctness: correctness}
 
 			db, err := openStore(cmd.Context())
 			if err != nil {
@@ -143,7 +144,7 @@ func newEvalAnswersCmd() *cobra.Command {
 				return err
 			}
 
-			report, err := eval.RunAnswers(cmd.Context(), retriever, generator, judge, questions, exp.FinalK())
+			report, err := eval.RunAnswers(cmd.Context(), retriever, generator, judge, opts, questions, exp.FinalK())
 			if err != nil {
 				return err
 			}
@@ -166,7 +167,8 @@ func newEvalAnswersCmd() *cobra.Command {
 	cmd.Flags().StringVar(&goldenPath, "golden", "data/golden/questions.yaml", "golden set file")
 	cmd.Flags().StringVar(&resultsDir, "results", "experiments/results", "folder where the report is saved")
 	cmd.Flags().IntVar(&limit, "limit", 0, "answer only N questions, spread evenly over the golden set (default: all)")
-	cmd.Flags().BoolVar(&useJudge, "judge", false, "also ask a model whether each answer is supported by its passages (slow)")
+	cmd.Flags().BoolVar(&correctness, "correctness", false, "ask a model whether each answer says what the reference answer says (short prompt, fast)")
+	cmd.Flags().BoolVar(&faithfulness, "faithfulness", false, "ask a model whether each answer is supported by its passages (sends the passages, slow)")
 	_ = cmd.MarkFlagRequired("config")
 	return cmd
 }

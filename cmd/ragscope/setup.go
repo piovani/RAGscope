@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -72,11 +73,36 @@ func newRetriever(ctx context.Context, exp *config.Experiment, db *store.Store) 
 		return nil, fmt.Errorf("retrieval mode %q is not implemented yet", exp.Retrieval.Mode)
 	}
 
+	retriever, err := withRewrite(retriever, exp)
+	if err != nil {
+		return nil, err
+	}
+
 	if exp.Reranker != nil {
 		reranker := rerank.NewTEI(env("TEI_RERANK_URL", "http://localhost:8082"))
 		retriever = retrieve.Reranked{Base: retriever, Reranker: reranker, Candidates: exp.Retrieval.K}
 	}
 	return retriever, nil
+}
+
+// withRewrite wraps the retriever with the query rewriting the experiment asks
+// for. The experiment's own model does the rewriting, so a run is not mixed with
+// a second model. Its calls are not counted in the cost of the answers.
+func withRewrite(base retrieve.Retriever, exp *config.Experiment) (retrieve.Retriever, error) {
+	switch exp.Retrieval.Rewrite {
+	case "", "none":
+		return base, nil
+	case "hyde", "multi_query":
+		llm, err := newGenerator(exp.Generator)
+		if err != nil {
+			return nil, err
+		}
+		if exp.Retrieval.Rewrite == "hyde" {
+			return retrieve.HyDE{Base: base, LLM: llm}, nil
+		}
+		return retrieve.MultiQuery{Base: base, LLM: llm, N: exp.RewriteQueryCount()}, nil
+	}
+	return nil, fmt.Errorf("query rewriting %q is not implemented", exp.Retrieval.Rewrite)
 }
 
 // newBM25 loads the collection's chunks to build the in-memory index.
@@ -91,10 +117,25 @@ func newBM25(ctx context.Context, db *store.Store, collection string) (*retrieve
 	return retrieve.NewBM25(chunks), nil
 }
 
+// chatGenerator is a model that writes answers and can also take free-form
+// prompts, which the judge and the query rewriters need.
+type chatGenerator interface {
+	generate.Generator
+	Chat(ctx context.Context, system, user string) (generate.Response, error)
+}
+
 // newGenerator builds the model that writes the answers, as set in the experiment.
-func newGenerator(g config.Generator) (*generate.Ollama, error) {
-	if g.Provider != "ollama" {
-		return nil, fmt.Errorf("generator provider %q is not implemented yet (only \"ollama\")", g.Provider)
+func newGenerator(g config.Generator) (chatGenerator, error) {
+	switch g.Provider {
+	case "ollama":
+		return generate.NewOllama(env("OLLAMA_URL", "http://localhost:11434"), g.Model, g.Temperature), nil
+	case "anthropic":
+		// The key comes from the environment, never from a file in the repository.
+		key := os.Getenv("ANTHROPIC_API_KEY")
+		if key == "" {
+			return nil, errors.New("ANTHROPIC_API_KEY is not set")
+		}
+		return generate.NewAnthropic(key, g.Model, g.Temperature, g.PriceInputPerMTok, g.PriceOutputPerMTok), nil
 	}
-	return generate.NewOllama(env("OLLAMA_URL", "http://localhost:11434"), g.Model, g.Temperature), nil
+	return nil, fmt.Errorf("generator provider %q is not implemented yet (use \"ollama\" or \"anthropic\")", g.Provider)
 }

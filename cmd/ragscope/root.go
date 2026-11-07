@@ -2,13 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
-	"net/http"
-	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/piovani/RAGscope/internal/api"
 	"github.com/piovani/RAGscope/internal/config"
 )
 
@@ -19,7 +15,7 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.AddCommand(newIngestCmd(), newAskCmd(), newEvalCmd(), newEvalAnswersCmd(), newGoldenCmd(), newConvertCmd(), newServeCmd(), newReportCmd(), newValidateCmd())
+	root.AddCommand(newIngestCmd(), newAskCmd(), newEvalCmd(), newEvalAnswersCmd(), newGradeSheetCmd(), newCalibrateCmd(), newGoldenCmd(), newConvertCmd(), newServeCmd(), newReportCmd(), newValidateCmd())
 	return root
 }
 
@@ -39,34 +35,4 @@ func newValidateCmd() *cobra.Command {
 			return nil
 		},
 	}
-}
-
-func newServeCmd() *cobra.Command {
-	var addr string
-	cmd := &cobra.Command{
-		Use:   "serve",
-		Short: "Start the HTTP API",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			srv := &http.Server{
-				Addr:              addr,
-				Handler:           api.NewHandler(),
-				ReadHeaderTimeout: 5 * time.Second,
-			}
-
-			errCh := make(chan error, 1)
-			go func() { errCh <- srv.ListenAndServe() }()
-			slog.Info("api listening", "addr", addr)
-
-			select {
-			case err := <-errCh:
-				return err
-			case <-cmd.Context().Done():
-				shutdownCtx, cancel := newShutdownContext()
-				defer cancel()
-				return srv.Shutdown(shutdownCtx)
-			}
-		},
-	}
-	cmd.Flags().StringVar(&addr, "addr", ":8080", "listen address")
-	return cmd
 }

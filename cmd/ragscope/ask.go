@@ -10,6 +10,7 @@ import (
 	"github.com/piovani/RAGscope/internal/config"
 	"github.com/piovani/RAGscope/internal/domain"
 	"github.com/piovani/RAGscope/internal/generate"
+	"github.com/piovani/RAGscope/internal/pipeline"
 )
 
 func newAskCmd() *cobra.Command {
@@ -37,36 +38,43 @@ func newAskCmd() *cobra.Command {
 				return err
 			}
 
-			sources, err := retriever.Retrieve(cmd.Context(), args[0], exp.FinalK())
-			if err != nil {
-				return err
+			var answer pipeline.Answer
+			if chunksOnly {
+				sources, err := retriever.Retrieve(cmd.Context(), args[0], exp.FinalK())
+				if err != nil {
+					return err
+				}
+				answer.Sources = sources
+			} else {
+				var generator generate.Generator
+				generator, err = newGenerator(exp.Generator)
+				if err != nil {
+					return err
+				}
+				answerer := pipeline.Answerer{Retriever: retriever, Generator: generator, K: exp.FinalK()}
+				answer, err = answerer.Ask(cmd.Context(), args[0])
+				if err != nil {
+					return err
+				}
 			}
 
 			out := cmd.OutOrStdout()
-			if len(sources) == 0 {
+			if len(answer.Sources) == 0 {
 				fmt.Fprintf(out, "nothing found. Did you run ingest for %q?\n", exp.Collection())
 				return nil
 			}
 
 			if !chunksOnly {
-				generator, err := newGenerator(exp.Generator)
-				if err != nil {
-					return err
-				}
-				resp, err := generator.Generate(cmd.Context(), generate.Request{Question: args[0], Context: sources})
-				if err != nil {
-					return err
-				}
-
-				if resp.Refused {
+				if answer.Refused {
 					fmt.Fprintln(out, "The retrieved passages do not answer this question.")
 				} else {
-					fmt.Fprintf(out, "%s\n", resp.Answer)
+					fmt.Fprintf(out, "%s\n", answer.Text)
 				}
-				fmt.Fprintf(out, "\n(%d tokens in, %d out, %.1fs)\n\n", resp.Usage.InputTokens, resp.Usage.OutputTokens, resp.Usage.Latency.Seconds())
+				u := answer.Usage
+				fmt.Fprintf(out, "\n(%d tokens in, %d out, %.1fs)\n\n", u.InputTokens, u.OutputTokens, u.Latency.Seconds())
 			}
 
-			printSources(out, sources)
+			printSources(out, answer.Sources)
 			return nil
 		},
 	}
