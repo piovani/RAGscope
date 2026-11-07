@@ -2,7 +2,7 @@
 
 > A Go laboratory that runs many RAG configurations over the same corpus and tells you, **with numbers**, which one is best on quality, cost and latency.
 
-**Status:** 🚧 Planning — nothing is implemented yet. This README is the project plan and will be replaced by real results as the phases below are completed.
+**Status:** working end to end on one corpus (the Brazilian data protection law, LGPD). Seven retrieval configurations are compared with confidence intervals, a reranker is included, and answers are generated and scored. Still missing: a correctness metric for answers, comparison with hosted models, query rewriting and a demo. See the [roadmap](#roadmap).
 
 ---
 
@@ -10,91 +10,152 @@
 
 Most RAG demos are "chat with a PDF": one fixed pipeline, no evidence that it works, no way to know whether a change made it better or worse.
 
-RAGscope inverts that. **The product is the benchmark, not the chatbot.** The chat endpoint is just a demo surface; the value is a reproducible experiment runner that answers questions like:
+RAGscope inverts that. **The product is the benchmark, not the chatbot.** The `ask` command is just a demo surface; the value is a reproducible experiment runner that answers questions like:
 
 - Does structure-aware chunking beat fixed-size chunking on legal text?
-- How much recall does hybrid search (vector + BM25) buy, and at what latency cost?
-- Is a reranker worth its extra milliseconds and dollars?
-- Can a small local model match a large hosted one once retrieval is good?
+- How much recall does hybrid search (vector + BM25) buy?
+- Is a reranker worth its extra time?
+- Can a small local model answer well, and does it know when to refuse?
 
-## Domain and corpus
+## Corpus
 
-**Brazilian legislation** (e.g. CLT, LGPD, Marco Civil da Internet, Código de Defesa do Consumidor), sourced from official public portals.
+The **LGPD** (Lei nº 13.709/2018), from the official Planalto portal. Public text, in Portuguese, organized in articles, paragraphs and items. The pipeline is domain-agnostic: another corpus needs a new source and a new golden set.
 
-Why this domain:
-
-- Public-domain text, in Portuguese — a less saturated space than English docs.
-- Naturally structured (articles, paragraphs, items), which makes chunking a meaningful experiment.
-- Questions can have verifiable, citable answers.
-- Includes cross-references between articles, which stress-tests multi-chunk retrieval.
-
-The pipeline itself is domain-agnostic: swapping the corpus should only require a new ingestion config and a new golden set.
+The page marks revoked wording with a strike, which a plain copy and paste loses. So the original page is kept in `data/sources/` and `ragscope convert` rebuilds the clean text from it. Details in [data/README.md](data/README.md).
 
 ## Architecture
 
+The full explanation is in [docs/architecture.md](docs/architecture.md).
+
 ```mermaid
 flowchart TB
+    CFG["Experiment config<br/>configs/experiments/*.yaml"]
+
     subgraph ING["1. Ingestion (offline)"]
-        A[Sources: HTML / PDF] --> B[Parser + cleaning]
-        B --> C{Chunking strategy}
-        C -->|fixed| D[Chunks]
-        C -->|recursive| D
-        C -->|structural: article / item| D
-        D --> E[Embeddings]
-        E --> F[(Postgres + pgvector)]
-        D --> G[(BM25 index)]
+        SRC["Law page as published<br/>data/sources/*.html"] -->|"ragscope convert<br/>drops revoked text"| TXT["Clean text<br/>data/raw/*.txt"]
+        TXT -->|"ragscope ingest"| CH{"Chunking"}
+        CH -->|"fixed"| CHK["Chunks"]
+        CH -->|"structural<br/>one per article"| CHK
+        CHK --> EMB["Embeddings<br/>Ollama, bge-m3"]
+        EMB --> PG[("Postgres + pgvector<br/>one collection per index")]
     end
 
-    subgraph QRY["2. Query (online)"]
-        Q[Question] --> QR[Query rewriting - optional]
-        QR --> R1[Vector search]
-        QR --> R2[BM25 search]
-        F --> R1
-        G --> R2
-        R1 --> H[Hybrid fusion - RRF]
-        R2 --> H
-        H --> RR[Reranker - cross-encoder]
-        RR --> P[Prompt assembly + citations]
-        P --> L[LLM]
-        L --> ANS[Answer + sources]
+    subgraph QRY["2. Query (ragscope ask and eval)"]
+        Q["Question"] --> MODE{"Retrieval mode"}
+        MODE -->|"vector"| VEC["Cosine search<br/>in pgvector"]
+        MODE -->|"bm25"| BM["BM25<br/>in memory"]
+        MODE -->|"hybrid"| HYB["Vector + BM25<br/>merged with RRF"]
+        VEC --> TOP["Top-k passages"]
+        BM --> TOP
+        HYB --> TOP
+        TOP -->|"without reranker"| PROMPT
+        TOP -->|"with reranker"| RR["Reranker<br/>bge-reranker-v2-m3"]
+        RR --> PROMPT["Prompt<br/>numbered passages, cite as [n],<br/>SEM_RESPOSTA to refuse"]
+        PROMPT --> LLM["LLM<br/>Ollama, llama3.2:3b"]
+        LLM --> ANS["Answer with sources<br/>or a refusal"]
     end
 
-    subgraph EVAL["3. Evaluation (the differentiator)"]
-        GS[(Golden set: question, reference answer, gold chunks)] --> RUN[Experiment runner]
-        RUN -->|executes each config| QRY
-        ANS --> MET[Metrics]
-        MET --> M1[Retrieval: recall@k, MRR, nDCG]
-        MET --> M2[Generation: faithfulness, relevancy, correctness]
-        MET --> M3[Cost, latency, tokens]
-        M1 --> DB[(Results store)]
-        M2 --> DB
-        M3 --> DB
-        DB --> DASH[Comparison dashboard / report]
+    subgraph EVAL["3. Evaluation"]
+        GOLD[("Golden set<br/>105 questions<br/>data/golden/questions.yaml")]
+        GOLD -->|"every question"| Q
+        TOP -->|"passages scored"| EV["ragscope eval<br/>hit rate, recall at k, MRR"]
+        ANS -->|"answers scored"| EA["ragscope eval-answers<br/>refusals, citations, faithfulness"]
+        EV --> RES[("JSON results<br/>experiments/results")]
+        EA --> RES
+        RES --> REP["ragscope report<br/>table with 95% CI vs baseline"]
     end
 
-    subgraph OBS["4. Observability"]
-        L -.traces.-> OT[OpenTelemetry]
-        RUN -.-> OT
-    end
+    PG --> VEC
+    PG -->|"chunks loaded<br/>at query time"| BM
+    CFG -.->|"chunking, embedding model"| CH
+    CFG -.->|"mode, k, reranker, generator"| MODE
 ```
 
-## Experiment strategy
+## Results
 
-Every pipeline variable is an axis. Experiments are declared as **YAML files** so every result is reproducible from a config and a commit hash.
+Retrieval, on the 95 questions that the law answers. Each experiment changes **one thing** from the baseline (fixed chunks of 512 words, vector search, top 5). Δ is the difference to the baseline with a 95% confidence interval; **\*** means the interval does not include zero.
 
-| Axis | Variations |
+| Experiment | What changes | Recall@1 | Δ Recall@1 | Recall@5 | MRR@5 |
+|---|---|--:|--:|--:|--:|
+| `hybrid-rerank-structural` | one chunk per article, vector + BM25, reranker | **0.695** | **+0.144 [+0.027, +0.258] \*** | 0.886 | **0.806** |
+| `ablation-rerank` | reranker over 10 candidates | 0.677 | **+0.126 [+0.035, +0.219] \*** | 0.886 | 0.795 |
+| `ablation-structural` | one chunk per article | 0.611 | +0.059 [−0.047, +0.168] | 0.881 | 0.746 |
+| `ablation-hybrid` | vector + BM25 merged with RRF | 0.572 | +0.021 [−0.074, +0.112] | **0.895** | 0.738 |
+| `baseline` | — | 0.551 | — | 0.870 | 0.712 |
+| `ablation-hybrid-structural` | one chunk per article and vector + BM25 | 0.547 | −0.004 [−0.123, +0.115] | 0.812 | 0.665 |
+| `ablation-bm25` | BM25 only | 0.486 | −0.065 [−0.179, +0.047] | 0.818 | 0.644 |
+
+Reproduce the tables with `ragscope report --k 1` and `ragscope report`.
+
+### What the numbers say
+
+- **The reranker is the only change that clearly helps**, and only at the top of the list: the relevant passage comes first much more often (recall@1 from 0.551 to 0.677 and 0.695). Its recall@5 is about the same as the baseline, because it reorders candidates instead of finding new ones. That matters for small models, which depend on the first passage.
+- **Everything else is inside the noise.** With 95 questions, the intervals of structural chunking, hybrid search and BM25 all include zero.
+- **An early conclusion did not survive.** With the first 30 questions, structural chunking looked like a big win (+0.200 recall@5). With 64 it was +0.039, and with 95 it was +0.011. The first questions were written close to the wording of the articles, which favours that kind of chunking. A small, hand-shaped test set can mislead.
+- **Combining two things that help did not add up.** Structural chunks plus hybrid search without a reranker were *worse* than either alone. The reason is not known yet.
+
+### Answers (first sample only)
+
+20 questions, `ablation-structural` with `llama3.2:3b` (18 answerable, 2 unanswerable). Too small to quote as a result, but it showed what to look at:
+
+- It refused 5 of 18 answerable questions. In 3 of them the right passage was **not** in the retrieved set, so refusing was correct behaviour. In 2 the passage was first and the model refused anyway.
+- 69% of the real answers cited a passage.
+- One answer defined the wrong concept (it described "pseudonimização" when asked about "anonimização") while citing a passage that really says that. It is faithful to the passage but wrong, which faithfulness does not catch.
+- About 16 s per answer on an 8 GB laptop.
+
+## Quick start
+
+You need Go 1.27, Docker, [Ollama](https://ollama.com) and (only for the reranker) Python 3.
+
+```bash
+make build
+make up                # Postgres with pgvector
+make models            # pulls bge-m3 (embeddings) and llama3.2:3b (answers)
+
+./bin/ragscope ingest -c configs/experiments/baseline.yaml
+./bin/ragscope ask    -c configs/experiments/baseline.yaml "Quanto tempo a empresa tem para me entregar os meus dados?"
+./bin/ragscope eval   -c configs/experiments/baseline.yaml
+./bin/ragscope report
+```
+
+For the experiments that use a reranker, set up Python once and run the server in another terminal:
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt
+make rerank            # downloads the model (about 2 GB) the first time
+```
+
+All commands:
+
+| Command | What it does |
 |---|---|
-| Chunking | fixed size (256 / 512 / 1024 tokens), recursive, structural (by article), semantic |
-| Embedding model | `bge-m3`, `multilingual-e5`, one hosted model |
-| Retrieval | vector only, BM25 only, hybrid (RRF) |
-| Reranking | none, open-source cross-encoder, hosted reranker |
-| Top-k | 3, 5, 10 |
-| Query rewriting | off, HyDE, multi-query |
-| Generator LLM | large hosted, small hosted, local (Ollama) |
+| `convert <page.html> <out.txt>` | turns a saved law page into clean text, dropping revoked wording |
+| `golden` | checks the golden set and that every evidence snippet exists in the corpus |
+| `ingest -c <config>` | chunks, embeds and stores the corpus |
+| `ask -c <config> "<question>"` | answers a question and lists the sources (`--chunks-only` skips the model) |
+| `eval -c <config>` | scores retrieval against the golden set |
+| `eval-answers -c <config>` | generates answers and scores refusals and citations (`--limit N`, `--judge`) |
+| `report [--k N]` | compares saved results, with confidence intervals |
+| `validate <config>...` | checks experiment config files |
+| `serve` | HTTP server (health check only for now) |
 
-The full Cartesian product is too large (and too expensive), so RAGscope uses **ablation studies**: start from a documented baseline and change **one axis at a time**. Interactions between the winning settings are tested afterward in a small, targeted grid.
+The full recipe to reproduce the table above is in [docs/methodology.md](docs/methodology.md).
 
-Example experiment config:
+## Experiments
+
+Every pipeline variable is an axis. Experiments are **YAML files**, so each result can be reproduced from a config and a commit.
+
+| Axis | Implemented | Not yet |
+|---|---|---|
+| Chunking | fixed, structural (one chunk per article) | recursive, semantic |
+| Embedding model | any model served by Ollama (`bge-m3` used) | hosted models |
+| Retrieval | vector, BM25, hybrid (RRF) | |
+| Reranking | cross-encoder `bge-reranker-v2-m3` | hosted reranker |
+| Top-k | any | |
+| Generator | Ollama (`llama3.2:3b` used) | Anthropic, OpenAI |
+| Query rewriting | | HyDE, multi-query |
+
+The full product of all axes is too large, so RAGscope uses **ablation**: a documented baseline and **one change at a time**. `ablation-hybrid-structural` and `hybrid-rerank-structural` are the targeted combinations.
 
 ```yaml
 name: hybrid-rerank-structural
@@ -102,6 +163,7 @@ corpus: br-legislation-v1
 chunking:
   strategy: structural
   max_tokens: 512
+  overlap: 64
 embedding:
   model: bge-m3
 retrieval:
@@ -112,119 +174,97 @@ reranker:
   model: bge-reranker-v2-m3
   top_n: 5
 generator:
-  model: <provider/model>
+  provider: ollama
+  model: llama3.2:3b
   temperature: 0
 ```
 
-## Evaluation methodology
+## Evaluation
 
-### Golden set
+The full description is in [docs/methodology.md](docs/methodology.md). In short:
 
-- **100–200 questions**, each with a reference answer and the gold source chunk(s).
-- Drafted with an LLM from the corpus, then **manually reviewed** (a documented sample at minimum).
-- Covers several question types: single-fact, multi-chunk, comparative, and **unanswerable** (the answer is not in the corpus — the system must refuse rather than hallucinate).
-- Versioned in the repository, with a description of how it was built and its known biases.
+- **Golden set:** 105 questions (95 answerable, 10 not), each with literal snippets of the law as evidence. A chunk is relevant if it contains a snippet, so the same set works for every chunking strategy.
+- **Written by a model, reviewed by other agents.** The questions were drafted by an AI model and two batches were reviewed by independent agents that read the law first. They found problems in about a third of the questions, which were fixed. A person's review of a sample is still missing.
+- **Retrieval metrics** (no model involved): hit rate, recall@k and MRR.
+- **Answer metrics:** correct and false refusal, citation rate and an optional faithfulness judge. The judge is a small model, so its score is **not calibrated**.
+- **Statistics:** a paired bootstrap against the baseline, question by question.
 
-### Metrics
-
-| Layer | Metrics | Needs an LLM? |
-|---|---|---|
-| Retrieval | recall@k, hit rate, MRR, nDCG | No (cheap, deterministic) |
-| Generation | faithfulness (grounded in context), answer relevancy, correctness vs. reference | Yes (LLM-as-judge) |
-| System | latency p50 / p95, cost per query, tokens in / out | No |
-| Robustness | correct-refusal rate on unanswerable questions | Partly |
-
-### Trusting the judge
-
-LLM-as-judge scores are only credible if calibrated. A subset of answers is graded by a human and the **judge–human agreement is reported** alongside results. Judge outputs are cached to keep re-runs cheap and deterministic.
-
-### Regression gate
-
-A small evaluation subset runs in CI. A pull request that drops a headline metric beyond a set threshold fails the check.
-
-## Tech stack (Go 1.27)
+## Tech stack
 
 | Concern | Choice |
 |---|---|
 | Language | Go 1.27 |
-| CLI | `cobra` (`ragscope ingest`, `ragscope eval`, `ragscope serve`, `ragscope report`) |
-| HTTP API | stdlib `net/http` with the enhanced `ServeMux` routing |
-| Storage | PostgreSQL + `pgvector` via `pgx` |
-| Lexical search | BM25 (in-process Go implementation, or Postgres-side extension — to be decided in an ADR) |
-| Embeddings | Ollama (`bge-m3`), running on the host so it can use Apple Silicon, behind a Go interface |
-| Reranker | Cross-encoder `bge-reranker-v2-m3` behind a Go interface. Hugging Face TEI in Docker on x86; on Apple Silicon `scripts/rerank_server.py` serves the same API |
-| LLM providers | Provider interface with adapters: Anthropic, OpenAI-compatible, Ollama |
-| Orchestration | Hand-written, thin pipeline — **no LangChain-style framework in the core**, so every stage is explicit and measurable |
-| Evaluation | Metrics and LLM-judge implemented in Go (existing eval tooling is Python-centric) |
-| Concurrency | Worker pools with `errgroup` for parallel experiment runs, with rate limiting per provider |
-| Observability | `log/slog` + OpenTelemetry traces |
-| Reports | Static HTML/Markdown report generated from the results store |
-| Tooling | `golangci-lint`, `go test` with table-driven tests, `govulncheck`, Docker Compose, GitHub Actions |
+| CLI | `cobra` |
+| HTTP | stdlib `net/http` (health check only for now) |
+| Storage | PostgreSQL + `pgvector` through `pgx`, exact search with no ANN index |
+| Lexical search | BM25 implemented in Go, in memory ([ADR 0001](docs/adr/0001-bm25-implementation.md)) |
+| Embeddings and answers | Ollama on the host (uses the Mac GPU) |
+| Reranker | `bge-reranker-v2-m3`. TEI in Docker on x86; `scripts/rerank_server.py` serves the same API on Apple Silicon |
+| Orchestration | hand-written, thin pipeline, **no LangChain-style framework**, so every stage is explicit and measurable |
+| Evaluation | metrics, bootstrap and judge written in Go |
+| Tooling | `go test`, `govulncheck`, Docker Compose, GitHub Actions |
 
 ### Design principles
 
-- **Every stage is an interface** (`Chunker`, `Embedder`, `Retriever`, `Reranker`, `Generator`, `Metric`), so an experiment is just a different wiring of implementations.
-- **Reproducibility first**: pinned corpus version, seeded sampling, config + commit hash stored with every result.
-- **Cost awareness**: token and latency accounting is built into the core, not bolted on.
-- **Fail loudly on unanswerable questions**: refusing correctly is a first-class metric.
+- **Every stage is an interface** (`Chunker`, `Embedder`, `Retriever`, `Reranker`, `Generator`), so an experiment is just a different wiring of implementations.
+- **Reproducibility first:** the golden set carries a fingerprint, saved with every result.
+- **Fail loudly on unanswerable questions:** refusing correctly is a first-class metric.
+- **Honest numbers:** every comparison shows whether the difference is bigger than luck.
 
-## Planned repository layout
+## Repository layout
 
 ```
 RAGscope/
-├── cmd/ragscope/          # CLI entrypoint
+├── cmd/ragscope/          # CLI
 ├── internal/
-│   ├── ingest/            # parsers and chunkers
-│   ├── embed/             # embedding clients
-│   ├── retrieve/          # vector, BM25, hybrid fusion
-│   ├── rerank/            # reranker clients
-│   ├── generate/          # LLM provider adapters, prompts
-│   ├── pipeline/          # wiring of stages from a config
-│   ├── eval/              # metrics, judge, experiment runner
-│   ├── store/             # Postgres / pgvector access, results store
-│   ├── api/               # HTTP handlers
-│   └── report/            # report generation
-├── configs/experiments/   # YAML experiment definitions
+│   ├── ingest/            # HTML to text, chunkers
+│   ├── embed/             # Ollama embeddings
+│   ├── retrieve/          # vector, BM25, hybrid, reranked
+│   ├── rerank/            # reranker client
+│   ├── generate/          # prompt and Ollama generator
+│   ├── eval/              # golden set, metrics, judge
+│   ├── report/            # comparison table and bootstrap
+│   ├── store/             # Postgres and pgvector
+│   ├── config/            # experiment config
+│   ├── httpjson/          # small JSON over HTTP client
+│   ├── pipeline/          # ingestion flow
+│   ├── domain/            # shared types
+│   └── api/               # HTTP handlers
+├── configs/experiments/   # one YAML per experiment
 ├── data/
-│   ├── raw/               # source documents (or download scripts)
-│   └── golden/            # versioned golden set
-├── docs/
-│   ├── adr/               # architecture decision records
-│   └── methodology.md
+│   ├── sources/           # original law page
+│   ├── raw/               # clean text read by ingest
+│   └── golden/            # the golden set
+├── docs/                  # architecture, methodology, ADRs
+├── scripts/               # local reranker server
 ├── deployments/           # docker-compose.yml
 └── .github/workflows/
 ```
 
 ## Roadmap
 
-- [ ] **Phase 0 — Foundation:** Go module, CLI skeleton, Docker Compose (Postgres + pgvector), Ollama for embeddings, CI (lint, test, vuln check).
-- [ ] **Phase 1 — Baseline:** ingest one or two laws, fixed-size chunking, vector search, answers with citations, minimal API.
-- [ ] **Phase 2 — Evaluation first:** 50-question golden set, retrieval + generation metrics, experiment runner, first baseline report. **No optimization happens before this exists.**
-- [ ] **Phase 3 — Ablations:** structural chunking, hybrid search, reranking, query rewriting, model comparisons — each documented with results and trade-offs.
-- [ ] **Phase 4 — Polish:** full golden set, judge calibration, CI regression gate, dashboard/report, hosted demo, write-up.
+- [x] **Foundation:** Go module, CLI, Docker Compose, Ollama, CI (format, vet, tests, config validation, `govulncheck`)
+- [x] **Baseline:** ingest, fixed chunks, vector search, `ask` with sources
+- [x] **Evaluation first:** golden set (105 questions), retrieval metrics, `report` with confidence intervals
+- [x] **Ablations on retrieval:** structural chunking, BM25, hybrid, reranker
+- [ ] **Ablations on answers**
+  - [x] generator, citations and refusal, first sample
+  - [ ] split false refusals by cause (retrieval or model)
+  - [ ] full run of the golden set
+  - [ ] correctness against the reference answer
+  - [ ] judge calibrated with human grades
+  - [ ] query rewriting (HyDE, multi-query)
+  - [ ] comparison with a hosted model, with cost
+- [ ] **Polish:** `/ask` endpoint and a small interface, demo, lint and a regression gate in CI, license
 
-## Success criteria
+## Known limitations
 
-The project is "done" when the README leads with a results table such as:
-
-> *Structural chunking + hybrid retrieval + reranking raised recall@5 from X to Y over the baseline, at +Z ms p95 latency and +$W per 1k queries.*
-
-…and anyone can reproduce it with a handful of commands:
-
-```bash
-docker compose up -d
-ragscope ingest --config configs/experiments/baseline.yaml
-ragscope eval   --config configs/experiments/baseline.yaml
-ragscope report
-```
-
-## Known risks
-
-- **Optimizing without a golden set** — mitigated by making Phase 2 a hard prerequisite for Phase 3.
-- **Uncalibrated LLM judge** — mitigated by human-graded subset and reported agreement.
-- **Evaluation cost** — mitigated by response/judge caching and running ablations with cheaper models.
-- **Golden-set bias** (LLM-generated questions favor the generator's phrasing) — documented, partially mitigated by manual review and hand-written questions.
-- **Source licensing** — restricted to official public-domain legislation.
+- **One corpus, one language.** Conclusions may not carry over to other laws or domains.
+- **The golden set was written by a model.** Reviewed by other agents, not yet by a person.
+- **95 questions** cannot tell small differences apart, and the intervals assume independent questions when several come from the same article.
+- **Latency is not reliable.** It was measured on an 8 GB laptop with the swap nearly full. Treat the reranker's times as an upper bound.
+- **The answer judge is weak and uncalibrated.**
+- **Answers are only measured on a 20-question sample so far.**
 
 ## License
 
