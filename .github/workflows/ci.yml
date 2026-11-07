@@ -34,3 +34,42 @@ jobs:
           go-version-file: go.mod
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+      - name: Lint
+        run: golangci-lint run ./...
+
+  # Runs the store integration test against a real pgvector database.
+  store:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: ragscope
+          POSTGRES_PASSWORD: ragscope
+          POSTGRES_DB: ragscope
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ragscope"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://ragscope:ragscope@localhost:5432/ragscope?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Store integration test
+        run: go test -count=1 -v ./internal/store

@@ -1,0 +1,41 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - misspell
+    - bodyclose
+    - errorlint
+  settings:
+    errcheck:
+      exclude-functions:
+        # Printing to a writer or a response: nothing useful to do on failure.
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Fprint
+        # Deferred rollback after a failed step; Commit already reports the real error.
+        - (github.com/jackc/pgx/v5.Tx).Rollback
+    misspell:
+      # The corpus is Portuguese; "relação" trips the English dictionary.
+      ignore-rules:
+        - rela
+    staticcheck:
+      # QF1008 only asks to drop an embedded field name; it is style, not a bug.
+      checks: ["all", "-QF1008"]
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      # Test HTTP handlers write to fakes; a failed Write there is not worth a check.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt

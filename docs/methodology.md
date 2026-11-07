@@ -77,22 +77,80 @@ No model is involved, so these are cheap and repeatable. They look at the first
 | Metric | Meaning |
 |---|---|
 | Correct refusal | share of unanswerable questions the model refused |
-| False refusal | share of answerable questions the model refused |
+| False refusal | share of answerable questions the model refused, split by cause (below) |
 | Citation rate | share of real answers that cite a passage like `[1]` |
-| Faithfulness | share of answers a judge model found supported by the passages (optional, `--judge`) |
+| Correct | share of answerable questions answered like the reference answer, judged by a model (`--correctness`). A refusal counts as wrong. |
+| Faithfulness | share of answers a judge model found supported by the passages (`--faithfulness`) |
+| Cost | dollars spent, for hosted models only. Local models cost zero. |
 
 Refusal is detected with a fixed marker word (`SEM_RESPOSTA`) that the prompt asks
 the model to write, which is more reliable than reading a polite sentence.
 
-Not measured yet: whether the answer is **correct** compared with the reference
-answer, and cost in money. Faithfulness is not correctness: an answer can be fully
-supported by a passage and still answer a different question. This happened in the
-first sample, when the model defined "pseudonimização" for a question about
-"anonimização".
+**A refusal is split by cause.** For each answerable question the run records
+whether all the evidence snippets were among the passages the model saw. If they
+were not, refusing was the fair thing to do and the retriever is to blame. If they
+were, the model refused with the answer in front of it. Counting both together
+hides which part of the system to fix.
 
-The faithfulness judge is the same small model that writes the answers, so it is a
-weak judge. Its scores are labeled "not calibrated" and must be compared with
-human grades before they are quoted.
+**Correct and faithful are different questions.** An answer can be fully supported
+by a passage and still answer something else. This happened in the first sample,
+when the model defined "pseudonimização" for a question about "anonimização". So
+correctness is checked against the reference answer, with a short prompt that does
+not need the passages, and faithfulness is checked against the passages, with a
+longer prompt that is much slower.
+
+### The judge is a model, so it is checked against a person
+
+The judge is the same small model that writes the answers, because a bigger one
+does not fit in memory. That is a weak judge, so its scores stay labeled "not
+calibrated" until a person has graded a sample:
+
+1. `ragscope grade-sheet` picks about 30 real answers to answerable questions,
+   evenly spaced so the choice is not random, and writes a YAML file. Each entry
+   has the question, the reference answer, the model's answer and the passages.
+   **It does not show the judge's verdicts**, so the person is not anchored by them.
+2. The person fills `human_correct` (required) and, if there is time,
+   `human_supported`.
+3. `ragscope calibrate` compares those grades with the judge's: percent agreement,
+   Cohen's kappa (agreement beyond chance), the 2x2 table, the judge's false
+   positives and false negatives, and the list of disagreements. With fewer than 20
+   entries compared it warns that the sample is too small to trust.
+
+Until step 2 is done, no judge number should be quoted as a result.
+
+## Query rewriting
+
+Two rewrites change the question before the search. Both use the experiment's own
+model, so a run is not mixed with a second one, and their calls are not counted in
+the cost of the answers.
+
+- **HyDE.** The model writes a short hypothetical passage, in the style of a law
+  article, that would answer the question. The search uses the question plus that
+  passage, which tends to be closer to the wording of the law than the question is.
+  If the model fails or returns nothing, the run fails. It never falls back to the
+  plain question, because that would hide the failure in the numbers.
+- **Multi-query.** The model rephrases the question a few times, each version is
+  searched and the rankings are merged with Reciprocal Rank Fusion. A chunk found by
+  several versions beats one found by a single version.
+
+## Hosted model
+
+The adapter for the Anthropic API exists and is tested against a fake server, but
+**no run with a hosted model is part of the results**: it needs an API key and
+money. The key is read only from the `ANTHROPIC_API_KEY` environment variable, and
+the experiment must state the prices per million tokens, so the cost can never be
+zero by accident. The example is `configs/experiments/hosted/ablation-claude.yaml`,
+kept out of the folder that CI validates.
+
+## Regression gate
+
+CI cannot run Ollama or a reranker, so it protects the parts that do not need them.
+A test chunks the real corpus with both chunkers, searches it with BM25 and fails
+if recall@5 or MRR drops below a threshold set a little under the measured value.
+That guards the chunkers, the tokenizer, BM25, the metric code and the golden set
+(every evidence snippet must still exist in the corpus). It does not measure
+embeddings or model quality. The store integration test runs against a real
+pgvector database in CI.
 
 ## Statistics
 
@@ -142,6 +200,20 @@ done
 
 ragscope report                  # each experiment's own k
 ragscope report --k 1            # only the first result
+
+# query rewriting (uses the model during retrieval)
+for e in ablation-hyde ablation-multiquery; do
+  ragscope eval -c configs/experiments/$e.yaml
+done
+
+# answers: refusals, citations and a correctness judge
+ragscope eval-answers -c configs/experiments/baseline.yaml --correctness
+# add --faithfulness to also judge support by the passages (slow), --limit N for a sample
+
+# calibrate the judge with your own grades
+ragscope grade-sheet --answers experiments/results/generation/<file>.json --out data/golden/grading/sheet.yaml
+#   ...fill in human_correct in the sheet...
+ragscope calibrate  --answers experiments/results/generation/<file>.json --sheet data/golden/grading/sheet.yaml
 ```
 
 The first `make rerank` downloads the reranker model (about 2 GB).
