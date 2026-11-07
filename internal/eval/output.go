@@ -73,28 +73,43 @@ func (r *AnswerReport) Print(w io.Writer) {
 
 	fmt.Fprintf(w, "  correct refusal   %.3f   (unanswerable questions the model refused)\n", r.CorrectRefusal)
 	fmt.Fprintf(w, "  false refusal     %.3f   (answerable questions it refused by mistake)\n", r.FalseRefusal)
+	fmt.Fprintf(w, "    evidence missing  %.3f   (the retriever did not bring the passage: refusing was fair)\n", r.FalseRefusalNoEvidence)
+	fmt.Fprintf(w, "    evidence present  %.3f   (the passage was there and the model refused anyway)\n", r.FalseRefusalWithEvidence)
 	fmt.Fprintf(w, "  with citation     %.3f   (answers that cite a passage like [1])\n", r.Citation)
+	if r.CorrectJudged > 0 {
+		fmt.Fprintf(w, "  correct           %.3f   (answerable questions answered like the reference; judged by a model, not calibrated)\n", r.Correct)
+	}
 	if r.Judged > 0 {
 		fmt.Fprintf(w, "  faithfulness      %.3f   (%d answers judged by a model; not calibrated)\n", r.Faithfulness, r.Judged)
 	}
 
 	fmt.Fprintf(w, "\ntokens:  %d in, %d out\n", r.InputTokens, r.OutputTokens)
+	if r.CostUSD > 0 {
+		fmt.Fprintf(w, "cost:    US$ %.4f (US$ %.4f per question)\n", r.CostUSD, r.CostUSD/float64(len(r.Results)))
+	}
 	fmt.Fprintf(w, "latency: mean %.1f s, p95 %.1f s\n", r.LatencyMean/1000, r.LatencyP95/1000)
 
-	var answeredButShouldNot, refusedButShouldAnswer, unsupported []AnswerResult
+	var answeredButShouldNot, refusedWithEvidence, refusedWithout, unsupported, incorrect []AnswerResult
 	for _, res := range r.Results {
 		switch {
 		case res.Unanswerable && !res.Refused:
 			answeredButShouldNot = append(answeredButShouldNot, res)
+		case !res.Unanswerable && res.Refused && res.EvidenceRetrieved != nil && *res.EvidenceRetrieved:
+			refusedWithEvidence = append(refusedWithEvidence, res)
 		case !res.Unanswerable && res.Refused:
-			refusedButShouldAnswer = append(refusedButShouldAnswer, res)
+			refusedWithout = append(refusedWithout, res)
 		}
 		if res.Supported != nil && !*res.Supported {
 			unsupported = append(unsupported, res)
 		}
+		if res.Correct != nil && !*res.Correct {
+			incorrect = append(incorrect, res)
+		}
 	}
 	printList(w, "answered, but the law has no answer", answeredButShouldNot)
-	printList(w, "refused, but the law has the answer", refusedButShouldAnswer)
+	printList(w, "refused although the passage was there (the model was too timid)", refusedWithEvidence)
+	printList(w, "refused because the retriever missed the passage", refusedWithout)
+	printList(w, "answer judged different from the reference", incorrect)
 	printList(w, "answer not supported by the passages (judge)", unsupported)
 }
 

@@ -21,7 +21,14 @@ Responda com UMA única palavra:
 - SUPORTADA, se tudo o que a resposta afirma aparece nos trechos;
 - NAO_SUPORTADA, se a resposta afirma algo que os trechos não dizem ou que os contradiz.`
 
-// LLMJudge asks a language model whether an answer is supported by its passages.
+const correctnessPrompt = `Você é um avaliador rigoroso. Você recebe uma pergunta, a RESPOSTA DE REFERÊNCIA (que está correta) e uma RESPOSTA a avaliar.
+Decida se a resposta diz o mesmo que a referência nos pontos principais.
+
+Responda com UMA única palavra:
+- CORRETA, se a resposta traz o ponto principal da referência e não a contradiz. Detalhes a mais que não contradizem a referência não a tornam incorreta;
+- INCORRETA, se a resposta contradiz a referência, responde outra coisa ou deixa de fora o ponto principal.`
+
+// LLMJudge asks a language model to grade answers.
 //
 // This is a first, simple version. A small model is a weak judge, so its scores
 // must be checked against human grades before they are trusted.
@@ -42,6 +49,31 @@ func (j LLMJudge) Supported(ctx context.Context, question string, passages []dom
 		return false, err
 	}
 	return parseVerdict(resp.Answer)
+}
+
+// Correct compares the answer with the reference answer. It does not send the
+// passages, so it is much shorter and faster than the faithfulness check.
+func (j LLMJudge) Correct(ctx context.Context, question, reference, answer string) (bool, error) {
+	user := fmt.Sprintf("Pergunta: %s\n\nResposta de referência: %s\n\nResposta a avaliar: %s", question, reference, answer)
+
+	resp, err := j.Model.Chat(ctx, correctnessPrompt, user)
+	if err != nil {
+		return false, err
+	}
+	return parseCorrectness(resp.Answer)
+}
+
+// parseCorrectness reads the one-word verdict. INCORRETA contains the letters of
+// CORRETA, so it has to be checked first.
+func parseCorrectness(answer string) (bool, error) {
+	upper := strings.ToUpper(answer)
+	switch {
+	case strings.Contains(upper, "INCORRETA"):
+		return false, nil
+	case strings.Contains(upper, "CORRETA"):
+		return true, nil
+	}
+	return false, fmt.Errorf("the judge did not answer CORRETA or INCORRETA: %.80q", answer)
 }
 
 // parseVerdict reads the judge's one-word answer. NAO_SUPORTADA contains the
