@@ -2,7 +2,9 @@
 
 > A Go laboratory that runs many RAG configurations over the same corpus and tells you, **with numbers**, which one is best on quality, cost and latency.
 
-**Status:** working end to end on one corpus (the Brazilian data protection law, LGPD). Seven retrieval configurations are compared with confidence intervals, a reranker is included, and answers are generated and scored. Still missing: a correctness metric for answers, comparison with hosted models, query rewriting and a demo. See the [roadmap](#roadmap).
+**Status:** working end to end on one corpus (the Brazilian data protection law, LGPD). Seven retrieval configurations are compared with confidence intervals, and a reranker, query rewriting (HyDE, multi-query), answer generation, a correctness and faithfulness judge, a hosted-model adapter and a small web demo are implemented. **Code is ready, results are pending** for the full answer run, the two rewriting experiments, the judge calibration (needs a person's grades) and the hosted model. See the [roadmap](#roadmap).
+
+![RAGscope web demo](docs/assets/ragscope-demo.gif)
 
 ---
 
@@ -16,6 +18,7 @@ RAGscope inverts that. **The product is the benchmark, not the chatbot.** The `a
 - How much recall does hybrid search (vector + BM25) buy?
 - Is a reranker worth its extra time?
 - Can a small local model answer well, and does it know when to refuse?
+- Does rewriting the question (HyDE, multi-query) help, and is a hosted model worth its cost?
 
 ## Corpus
 
@@ -40,8 +43,10 @@ flowchart TB
         EMB --> PG[("Postgres + pgvector<br/>one collection per index")]
     end
 
-    subgraph QRY["2. Query (ragscope ask and eval)"]
-        Q["Question"] --> MODE{"Retrieval mode"}
+    subgraph QRY["2. Query (ragscope ask, serve and eval)"]
+        WEB["Web page and POST /api/ask<br/>ragscope serve"] -->|"question"| Q["Question"]
+        Q --> RW["Query rewriting, optional<br/>HyDE or multi-query"]
+        RW --> MODE{"Retrieval mode"}
         MODE -->|"vector"| VEC["Cosine search<br/>in pgvector"]
         MODE -->|"bm25"| BM["BM25<br/>in memory"]
         MODE -->|"hybrid"| HYB["Vector + BM25<br/>merged with RRF"]
@@ -51,24 +56,30 @@ flowchart TB
         TOP -->|"without reranker"| PROMPT
         TOP -->|"with reranker"| RR["Reranker<br/>bge-reranker-v2-m3"]
         RR --> PROMPT["Prompt<br/>numbered passages, cite as [n],<br/>SEM_RESPOSTA to refuse"]
-        PROMPT --> LLM["LLM<br/>Ollama, llama3.2:3b"]
+        PROMPT --> LLM["LLM<br/>Ollama, llama3.2:3b<br/>or Anthropic, hosted"]
+        LLM -.->|"writes the rewrites"| RW
         LLM --> ANS["Answer with sources<br/>or a refusal"]
+        ANS -->|"answer and sources"| WEB
     end
 
     subgraph EVAL["3. Evaluation"]
         GOLD[("Golden set<br/>105 questions<br/>data/golden/questions.yaml")]
         GOLD -->|"every question"| Q
         TOP -->|"passages scored"| EV["ragscope eval<br/>hit rate, recall at k, MRR"]
-        ANS -->|"answers scored"| EA["ragscope eval-answers<br/>refusals, citations, faithfulness"]
+        ANS -->|"answers scored"| EA["ragscope eval-answers<br/>refusals by cause, citations,<br/>correctness, faithfulness"]
         EV --> RES[("JSON results<br/>experiments/results")]
         EA --> RES
         RES --> REP["ragscope report<br/>table with 95% CI vs baseline"]
+        RES --> SHEET["ragscope grade-sheet<br/>about 30 answers to grade"]
+        SHEET --> HUM["Your grades"]
+        HUM --> CAL["ragscope calibrate<br/>judge against your grades"]
+        RES --> CAL
     end
 
     PG --> VEC
     PG -->|"chunks loaded<br/>at query time"| BM
     CFG -.->|"chunking, embedding model"| CH
-    CFG -.->|"mode, k, reranker, generator"| MODE
+    CFG -.->|"rewrite, mode, k, reranker, generator"| RW
 ```
 
 ## Results
@@ -96,6 +107,8 @@ Reproduce the tables with `ragscope report --k 1` and `ragscope report`.
 
 ### Answers (first sample only)
 
+The full run over the golden set, with correctness and faithfulness, is **pending**. The first sample, before the refusal split and the correctness metric existed:
+
 20 questions, `ablation-structural` with `llama3.2:3b` (18 answerable, 2 unanswerable). Too small to quote as a result, but it showed what to look at:
 
 - It refused 5 of 18 answerable questions. In 3 of them the right passage was **not** in the retrieved set, so refusing was correct behaviour. In 2 the passage was first and the model refused anyway.
@@ -116,6 +129,7 @@ make models            # pulls bge-m3 (embeddings) and llama3.2:3b (answers)
 ./bin/ragscope ask    -c configs/experiments/baseline.yaml "Quanto tempo a empresa tem para me entregar os meus dados?"
 ./bin/ragscope eval   -c configs/experiments/baseline.yaml
 ./bin/ragscope report
+./bin/ragscope serve -c configs/experiments/baseline.yaml   # web demo at http://127.0.0.1:8080
 ```
 
 For the experiments that use a reranker, set up Python once and run the server in another terminal:
@@ -134,10 +148,12 @@ All commands:
 | `ingest -c <config>` | chunks, embeds and stores the corpus |
 | `ask -c <config> "<question>"` | answers a question and lists the sources (`--chunks-only` skips the model) |
 | `eval -c <config>` | scores retrieval against the golden set |
-| `eval-answers -c <config>` | generates answers and scores refusals and citations (`--limit N`, `--judge`) |
+| `eval-answers -c <config>` | generates answers and scores refusals (split by cause), citations and cost. Optional: `--correctness` (against the reference answer), `--faithfulness` (against the passages), `--limit N` |
+| `grade-sheet --answers <json> --out <yaml>` | writes about 30 answers for a person to grade, without the judge's verdicts |
+| `calibrate --answers <json> --sheet <yaml>` | compares the judge with the person's grades (agreement and Cohen's kappa) |
 | `report [--k N]` | compares saved results, with confidence intervals |
 | `validate <config>...` | checks experiment config files |
-| `serve` | HTTP server (health check only for now) |
+| `serve -c <config> [--addr]` | local web page and `POST /api/ask`. No authentication, so keep it on localhost |
 
 The full recipe to reproduce the table above is in [docs/methodology.md](docs/methodology.md).
 
@@ -152,8 +168,8 @@ Every pipeline variable is an axis. Experiments are **YAML files**, so each resu
 | Retrieval | vector, BM25, hybrid (RRF) | |
 | Reranking | cross-encoder `bge-reranker-v2-m3` | hosted reranker |
 | Top-k | any | |
-| Generator | Ollama (`llama3.2:3b` used) | Anthropic, OpenAI |
-| Query rewriting | | HyDE, multi-query |
+| Generator | Ollama (`llama3.2:3b` used), Anthropic (adapter ready, not run yet) | OpenAI |
+| Query rewriting | none, HyDE, multi-query (configs ready, not measured yet) | |
 
 The full product of all axes is too large, so RAGscope uses **ablation**: a documented baseline and **one change at a time**. `ablation-hybrid-structural` and `hybrid-rerank-structural` are the targeted combinations.
 
@@ -186,7 +202,8 @@ The full description is in [docs/methodology.md](docs/methodology.md). In short:
 - **Golden set:** 105 questions (95 answerable, 10 not), each with literal snippets of the law as evidence. A chunk is relevant if it contains a snippet, so the same set works for every chunking strategy.
 - **Written by a model, reviewed by other agents.** The questions were drafted by an AI model and two batches were reviewed by independent agents that read the law first. They found problems in about a third of the questions, which were fixed. A person's review of a sample is still missing.
 - **Retrieval metrics** (no model involved): hit rate, recall@k and MRR.
-- **Answer metrics:** correct and false refusal, citation rate and an optional faithfulness judge. The judge is a small model, so its score is **not calibrated**.
+- **Answer metrics:** correct refusal, false refusal split by cause (the evidence was retrieved or not), citation rate, cost, and two optional model judges: correctness against the reference answer and faithfulness to the passages. The judge is a small model, so its scores are **not calibrated** until a person grades a sample (`grade-sheet`, then `calibrate`).
+- **Regression gate in CI:** a test chunks the real corpus, searches it with BM25 and fails if recall drops. It needs no model or database.
 - **Statistics:** a paired bootstrap against the baseline, question by question.
 
 ## Tech stack
@@ -195,14 +212,14 @@ The full description is in [docs/methodology.md](docs/methodology.md). In short:
 |---|---|
 | Language | Go 1.27 |
 | CLI | `cobra` |
-| HTTP | stdlib `net/http` (health check only for now) |
+| HTTP | stdlib `net/http`, with a one-file web page embedded in the binary |
 | Storage | PostgreSQL + `pgvector` through `pgx`, exact search with no ANN index |
 | Lexical search | BM25 implemented in Go, in memory ([ADR 0001](docs/adr/0001-bm25-implementation.md)) |
-| Embeddings and answers | Ollama on the host (uses the Mac GPU) |
+| Embeddings and answers | Ollama on the host (uses the Mac GPU); optional Anthropic adapter, key only from `ANTHROPIC_API_KEY`, cost counted per call |
 | Reranker | `bge-reranker-v2-m3`. TEI in Docker on x86; `scripts/rerank_server.py` serves the same API on Apple Silicon |
 | Orchestration | hand-written, thin pipeline, **no LangChain-style framework**, so every stage is explicit and measurable |
 | Evaluation | metrics, bootstrap and judge written in Go |
-| Tooling | `go test`, `govulncheck`, Docker Compose, GitHub Actions |
+| Tooling | `go test -race`, `golangci-lint`, `govulncheck`, Docker Compose, GitHub Actions (with a pgvector service for the store test) |
 
 ### Design principles
 
@@ -219,23 +236,24 @@ RAGscope/
 ├── internal/
 │   ├── ingest/            # HTML to text, chunkers
 │   ├── embed/             # Ollama embeddings
-│   ├── retrieve/          # vector, BM25, hybrid, reranked
+│   ├── retrieve/          # vector, BM25, hybrid, reranked, query rewriting
 │   ├── rerank/            # reranker client
-│   ├── generate/          # prompt and Ollama generator
-│   ├── eval/              # golden set, metrics, judge
+│   ├── generate/          # prompt, Ollama and Anthropic generators
+│   ├── eval/              # golden set, metrics, judge, calibration
+│   ├── regression/        # BM25 quality gate on the real corpus
 │   ├── report/            # comparison table and bootstrap
 │   ├── store/             # Postgres and pgvector
 │   ├── config/            # experiment config
 │   ├── httpjson/          # small JSON over HTTP client
-│   ├── pipeline/          # ingestion flow
+│   ├── pipeline/          # ingestion flow and the ask flow
 │   ├── domain/            # shared types
-│   └── api/               # HTTP handlers
+│   └── api/               # HTTP handlers and the web page
 ├── configs/experiments/   # one YAML per experiment
 ├── data/
 │   ├── sources/           # original law page
 │   ├── raw/               # clean text read by ingest
 │   └── golden/            # the golden set
-├── docs/                  # architecture, methodology, ADRs
+├── docs/                  # architecture, methodology, ADRs, demo GIF
 ├── scripts/               # local reranker server
 ├── deployments/           # docker-compose.yml
 └── .github/workflows/
@@ -247,15 +265,18 @@ RAGscope/
 - [x] **Baseline:** ingest, fixed chunks, vector search, `ask` with sources
 - [x] **Evaluation first:** golden set (105 questions), retrieval metrics, `report` with confidence intervals
 - [x] **Ablations on retrieval:** structural chunking, BM25, hybrid, reranker
-- [ ] **Ablations on answers**
+- [ ] **Ablations on answers** (code is ready; the runs are what is left)
   - [x] generator, citations and refusal, first sample
-  - [ ] split false refusals by cause (retrieval or model)
-  - [ ] full run of the golden set
-  - [ ] correctness against the reference answer
-  - [ ] judge calibrated with human grades
-  - [ ] query rewriting (HyDE, multi-query)
-  - [ ] comparison with a hosted model, with cost
-- [ ] **Polish:** `/ask` endpoint and a small interface, demo, lint and a regression gate in CI, license
+  - [x] split false refusals by cause (retrieval or model): implemented
+  - [ ] full run of the golden set with `eval-answers`
+  - [x] correctness against the reference answer: judge implemented
+  - [ ] judge calibrated with human grades: tooling ready, waiting for a person to grade about 30 answers
+  - [x] query rewriting (HyDE, multi-query): implemented
+  - [ ] measure HyDE and multi-query with `eval`
+  - [x] hosted model adapter, with cost: implemented
+  - [ ] run the hosted model (needs `ANTHROPIC_API_KEY` and the prices in `configs/experiments/hosted/ablation-claude.yaml`)
+- [x] **Polish:** `serve` with a small web interface, demo GIF, lint and a regression gate in CI, MIT license
+- [ ] **Later:** hosted demo, answers with the reranker, `recursive` and `semantic` chunkers, nDCG
 
 ## Known limitations
 
@@ -263,9 +284,10 @@ RAGscope/
 - **The golden set was written by a model.** Reviewed by other agents, not yet by a person.
 - **95 questions** cannot tell small differences apart, and the intervals assume independent questions when several come from the same article.
 - **Latency is not reliable.** It was measured on an 8 GB laptop with the swap nearly full. Treat the reranker's times as an upper bound.
-- **The answer judge is weak and uncalibrated.**
-- **Answers are only measured on a 20-question sample so far.**
+- **The answer judges are small models and uncalibrated** until a person grades a sample.
+- **Answers are only measured on a 20-question sample so far.** The full run is pending.
+- **The web demo has no authentication.** Run it on localhost only.
 
 ## License
 
-To be defined.
+[MIT](LICENSE).
