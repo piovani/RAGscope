@@ -1,0 +1,17 @@
+# Diagnosis, not a candidate: BM25 alone on the structural index. It tests the
+# idea that the BM25 half is what hurts ablation-hybrid-structural.
+name: ablation-bm25-structural
+corpus: br-legislation-v1
+chunking:
+  strategy: structural
+  max_tokens: 512
+  overlap: 64
+embedding:
+  model: bge-m3
+retrieval:
+  mode: bm25
+  k: 5
+generator:
+  provider: ollama
+  model: llama3.2:3b
+  temperature: 0

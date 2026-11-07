@@ -27,14 +27,24 @@ func (h Hybrid) Retrieve(ctx context.Context, query string, k int) ([]domain.Sco
 	// Fusion works better when each retriever offers more than the final k.
 	pool := max(2*k, 20)
 
-	scores := map[string]float64{}
-	chunks := map[string]domain.Chunk{}
-
+	rankings := make([][]domain.ScoredChunk, 0, len(h.Retrievers))
 	for _, retriever := range h.Retrievers {
 		results, err := retriever.Retrieve(ctx, query, pool)
 		if err != nil {
 			return nil, fmt.Errorf("%s retriever: %w", retriever.Name(), err)
 		}
+		rankings = append(rankings, results)
+	}
+	return fuse(rankings, k), nil
+}
+
+// fuse merges rankings with Reciprocal Rank Fusion and returns the top k.
+// Ties are broken by chunk ID so the result is always the same.
+func fuse(rankings [][]domain.ScoredChunk, k int) []domain.ScoredChunk {
+	scores := map[string]float64{}
+	chunks := map[string]domain.Chunk{}
+
+	for _, results := range rankings {
 		for position, result := range results {
 			scores[result.ID] += 1 / float64(rrfK+position+1)
 			chunks[result.ID] = result.Chunk
@@ -52,5 +62,5 @@ func (h Hybrid) Retrieve(ctx context.Context, query string, k int) ([]domain.Sco
 	if len(merged) > k {
 		merged = merged[:k]
 	}
-	return merged, nil
+	return merged
 }

@@ -1,0 +1,30 @@
+# Hosted model comparison. It is kept in this folder so `ragscope validate
+# configs/experiments/*.yaml` (and the CI) do not pick it up: it needs an API
+# key and money, and it is run on purpose.
+#
+# Before running:
+#   export ANTHROPIC_API_KEY=...   (the key is never stored in the repository)
+#   fill in the two prices below from the provider's pricing page, in US dollars
+#   per million tokens. Prices change, so they are not written here for you.
+#
+#   ragscope eval-answers -c configs/experiments/hosted/ablation-claude.yaml --limit 20 --correctness
+#
+# Same retrieval as ablation-structural, only the model that writes the answers
+# changes, so the difference comes from the model.
+name: ablation-claude
+corpus: br-legislation-v1
+chunking:
+  strategy: structural
+  max_tokens: 512
+  overlap: 64
+embedding:
+  model: bge-m3
+retrieval:
+  mode: vector
+  k: 5
+generator:
+  provider: anthropic
+  model: claude-haiku-5-5
+  temperature: 0
+  price_input_per_mtok: 0   # TODO: fill in
+  price_output_per_mtok: 0  # TODO: fill in

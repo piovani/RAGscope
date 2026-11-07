@@ -1,0 +1,19 @@
+# Ablation: only the question changes. The model first writes a short
+# hypothetical passage that would answer it (HyDE), and the search uses the
+# question plus that passage. Shares the baseline's index.
+name: ablation-hyde
+corpus: br-legislation-v1
+chunking:
+  strategy: fixed
+  max_tokens: 512
+  overlap: 64
+embedding:
+  model: bge-m3
+retrieval:
+  mode: vector
+  k: 5
+  rewrite: hyde
+generator:
+  provider: ollama
+  model: llama3.2:3b
+  temperature: 0

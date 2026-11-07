@@ -1,0 +1,20 @@
+# Ablation: only the question changes. The model rephrases it three ways, every
+# version is searched and the rankings are merged with RRF. Shares the
+# baseline's index.
+name: ablation-multiquery
+corpus: br-legislation-v1
+chunking:
+  strategy: fixed
+  max_tokens: 512
+  overlap: 64
+embedding:
+  model: bge-m3
+retrieval:
+  mode: vector
+  k: 5
+  rewrite: multi_query
+  rewrite_queries: 3
+generator:
+  provider: ollama
+  model: llama3.2:3b
+  temperature: 0

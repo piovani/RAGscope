@@ -127,3 +127,55 @@ func TestLoadMissingFile(t *testing.T) {
 		t.Fatal("expected error for missing file")
 	}
 }
+
+func TestRewriteAndProviderValidation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr string
+	}{
+		{"hyde is accepted", strings.Replace(validYAML, "fusion: rrf}", "fusion: rrf, rewrite: hyde}", 1), ""},
+		{"unknown rewrite", strings.Replace(validYAML, "fusion: rrf}", "fusion: rrf, rewrite: magic}", 1), "retrieval.rewrite"},
+		{"unknown provider", strings.Replace(validYAML, "provider: ollama", "provider: skynet", 1), "generator.provider"},
+		{
+			name:    "anthropic needs prices",
+			yaml:    strings.Replace(validYAML, "provider: ollama, model: llama3", "provider: anthropic, model: some-model", 1),
+			wantErr: "price_input_per_mtok",
+		},
+		{
+			name: "anthropic with prices",
+			yaml: strings.Replace(validYAML, "provider: ollama, model: llama3",
+				"provider: anthropic, model: some-model, price_input_per_mtok: 1, price_output_per_mtok: 5", 1),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := Load(writeTemp(t, tt.yaml))
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error = %v, want it to contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRewriteQueryCountDefault(t *testing.T) {
+	t.Parallel()
+	e := &Experiment{}
+	if e.RewriteQueryCount() != 3 {
+		t.Errorf("default = %d, want 3", e.RewriteQueryCount())
+	}
+	e.Retrieval.RewriteQueries = 5
+	if e.RewriteQueryCount() != 5 {
+		t.Errorf("explicit = %d, want 5", e.RewriteQueryCount())
+	}
+}

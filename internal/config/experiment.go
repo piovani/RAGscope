@@ -35,6 +35,12 @@ type Retrieval struct {
 	Mode   string `yaml:"mode"` // vector | bm25 | hybrid
 	K      int    `yaml:"k"`
 	Fusion string `yaml:"fusion,omitempty"` // rrf (hybrid only)
+
+	// Rewrite changes the question before searching: "none" (default), "hyde"
+	// (search with a hypothetical answer too) or "multi_query" (search with
+	// several rephrasings and merge the results).
+	Rewrite        string `yaml:"rewrite,omitempty"`
+	RewriteQueries int    `yaml:"rewrite_queries,omitempty"` // multi_query only; default 3
 }
 
 type Reranker struct {
@@ -43,9 +49,15 @@ type Reranker struct {
 }
 
 type Generator struct {
-	Provider    string  `yaml:"provider"` // anthropic | openai | ollama
+	Provider    string  `yaml:"provider"` // ollama | anthropic
 	Model       string  `yaml:"model"`
 	Temperature float64 `yaml:"temperature"`
+
+	// Prices in US dollars per million tokens. They are required for hosted
+	// providers, so the cost of a run is never silently zero. Check the
+	// provider's pricing page: prices change.
+	PriceInputPerMTok  float64 `yaml:"price_input_per_mtok,omitempty"`
+	PriceOutputPerMTok float64 `yaml:"price_output_per_mtok,omitempty"`
 }
 
 // Collection names where the experiment's chunks are stored. It depends only on
@@ -55,6 +67,14 @@ type Generator struct {
 func (e *Experiment) Collection() string {
 	return fmt.Sprintf("%s_%s-%d-%d_%s",
 		e.Corpus, e.Chunking.Strategy, e.Chunking.MaxTokens, e.Chunking.Overlap, e.Embedding.Model)
+}
+
+// RewriteQueryCount is how many rephrasings multi_query asks the model for.
+func (e *Experiment) RewriteQueryCount() int {
+	if e.Retrieval.RewriteQueries > 0 {
+		return e.Retrieval.RewriteQueries
+	}
+	return 3
 }
 
 // FinalK is how many chunks the experiment hands to the generator: what is left
@@ -69,6 +89,8 @@ func (e *Experiment) FinalK() int {
 var (
 	chunkStrategies = map[string]bool{"fixed": true, "recursive": true, "structural": true, "semantic": true}
 	retrievalModes  = map[string]bool{"vector": true, "bm25": true, "hybrid": true}
+	rewriteModes    = map[string]bool{"": true, "none": true, "hyde": true, "multi_query": true}
+	providers       = map[string]bool{"ollama": true, "anthropic": true}
 )
 
 // Load reads and validates an experiment YAML file.
@@ -127,8 +149,20 @@ func (e *Experiment) Validate() error {
 			add("reranker.top_n must be in (0, retrieval.k]")
 		}
 	}
+	if !rewriteModes[e.Retrieval.Rewrite] {
+		add("retrieval.rewrite %q is not one of none|hyde|multi_query", e.Retrieval.Rewrite)
+	}
+	if e.Retrieval.RewriteQueries < 0 {
+		add("retrieval.rewrite_queries must not be negative")
+	}
 	if e.Generator.Provider == "" || e.Generator.Model == "" {
 		add("generator.provider and generator.model are required")
+	} else if !providers[e.Generator.Provider] {
+		add("generator.provider %q is not one of ollama|anthropic", e.Generator.Provider)
+	}
+	if e.Generator.Provider == "anthropic" &&
+		(e.Generator.PriceInputPerMTok <= 0 || e.Generator.PriceOutputPerMTok <= 0) {
+		add("generator.price_input_per_mtok and price_output_per_mtok are required for anthropic, so the cost is never zero by accident")
 	}
 	return errors.Join(errs...)
 }
