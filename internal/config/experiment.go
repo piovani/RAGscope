@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -49,15 +50,51 @@ type Reranker struct {
 }
 
 type Generator struct {
-	Provider    string  `yaml:"provider"` // ollama | anthropic
+	Provider    string  `yaml:"provider"` // ollama | openai | anthropic
 	Model       string  `yaml:"model"`
 	Temperature float64 `yaml:"temperature"`
+
+	// BaseURL points an "openai" generator at any server that speaks the OpenAI
+	// Chat Completions protocol (Azure OpenAI, GitHub Models, OpenRouter, vLLM,
+	// LM Studio...). Empty means api.openai.com.
+	BaseURL string `yaml:"base_url,omitempty"`
+	// APIKeyEnv names the environment variable that holds the key. The key itself
+	// never goes in a config file. Defaults to OPENAI_API_KEY or ANTHROPIC_API_KEY.
+	APIKeyEnv string `yaml:"api_key_env,omitempty"`
 
 	// Prices in US dollars per million tokens. They are required for hosted
 	// providers, so the cost of a run is never silently zero. Check the
 	// provider's pricing page: prices change.
 	PriceInputPerMTok  float64 `yaml:"price_input_per_mtok,omitempty"`
 	PriceOutputPerMTok float64 `yaml:"price_output_per_mtok,omitempty"`
+}
+
+// NeedsPrices tells whether the run must state prices. Hosted providers do. An
+// "openai" generator pointed at this machine (LM Studio, vLLM, llama.cpp) costs
+// nothing per token, like Ollama, so it is exempt.
+func (g Generator) NeedsPrices() bool {
+	switch g.Provider {
+	case "anthropic":
+		return true
+	case "openai":
+		return !isLoopback(g.BaseURL)
+	}
+	return false
+}
+
+func isLoopback(raw string) bool {
+	if raw == "" {
+		return false // empty means api.openai.com
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	switch u.Hostname() {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	}
+	return false
 }
 
 // Collection names where the experiment's chunks are stored. It depends only on
@@ -90,7 +127,7 @@ var (
 	chunkStrategies = map[string]bool{"fixed": true, "recursive": true, "structural": true, "semantic": true}
 	retrievalModes  = map[string]bool{"vector": true, "bm25": true, "hybrid": true}
 	rewriteModes    = map[string]bool{"": true, "none": true, "hyde": true, "multi_query": true}
-	providers       = map[string]bool{"ollama": true, "anthropic": true}
+	providers       = map[string]bool{"ollama": true, "openai": true, "anthropic": true}
 )
 
 // Load reads and validates an experiment YAML file.
@@ -158,11 +195,14 @@ func (e *Experiment) Validate() error {
 	if e.Generator.Provider == "" || e.Generator.Model == "" {
 		add("generator.provider and generator.model are required")
 	} else if !providers[e.Generator.Provider] {
-		add("generator.provider %q is not one of ollama|anthropic", e.Generator.Provider)
+		add("generator.provider %q is not one of ollama|openai|anthropic", e.Generator.Provider)
 	}
-	if e.Generator.Provider == "anthropic" &&
+	if e.Generator.BaseURL != "" && e.Generator.Provider != "openai" {
+		add("generator.base_url only applies to the openai provider")
+	}
+	if e.Generator.NeedsPrices() &&
 		(e.Generator.PriceInputPerMTok <= 0 || e.Generator.PriceOutputPerMTok <= 0) {
-		add("generator.price_input_per_mtok and price_output_per_mtok are required for anthropic, so the cost is never zero by accident")
+		add("generator.price_input_per_mtok and price_output_per_mtok are required for %s, so the cost is never zero by accident", e.Generator.Provider)
 	}
 	return errors.Join(errs...)
 }

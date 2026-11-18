@@ -118,6 +118,11 @@ calibrated" until a person has graded a sample:
 
 Until step 2 is done, no judge number should be quoted as a result.
 
+The sheet for the first full run is `data/golden/grade-sheet.yaml`. In that run the
+judge called only 11.6% of the answers correct, which is suspiciously low for a model
+that refused just 24% of the time, so the correctness number is the one most likely
+to change after calibration.
+
 ## Query rewriting
 
 Two rewrites change the question before the search. Both use the experiment's own
@@ -135,12 +140,17 @@ the cost of the answers.
 
 ## Hosted model
 
-The adapter for the Anthropic API exists and is tested against a fake server, but
+Two adapters reach hosted models: `openai` (the Chat Completions protocol, which
+OpenAI, Azure OpenAI, GitHub Models, OpenRouter and most self-hosted servers speak,
+selected with `base_url`) and `anthropic`. Both are tested against a fake server, but
 **no run with a hosted model is part of the results**: it needs an API key and
-money. The key is read only from the `ANTHROPIC_API_KEY` environment variable, and
-the experiment must state the prices per million tokens, so the cost can never be
-zero by accident. The example is `configs/experiments/hosted/ablation-claude.yaml`,
-kept out of the folder that CI validates.
+money. The key is read only from an environment variable (`api_key_env`, or
+`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` by default), and the experiment must state
+the prices per million tokens, so the cost can never be zero by accident. A server
+on this machine (`localhost`, for LM Studio or vLLM) costs nothing per token and is
+exempt, like Ollama. Even with a key and prices, a paid generator only runs with the
+`--allow-paid` flag, so a stray key or a copied config cannot spend credits. The examples are in `configs/experiments/hosted/`, kept out of
+the folder that CI validates.
 
 ## Regression gate
 

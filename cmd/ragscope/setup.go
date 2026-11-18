@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 
@@ -124,18 +123,48 @@ type chatGenerator interface {
 	Chat(ctx context.Context, system, user string) (generate.Response, error)
 }
 
+// allowPaid is set by the --allow-paid flag. Without it, no command builds a
+// generator that bills per token, even if an API key is in the environment, so a
+// stray key or a copied config can never spend money by accident.
+var allowPaid bool
+
 // newGenerator builds the model that writes the answers, as set in the experiment.
+// RAGscope is not tied to one vendor: any provider below can be swapped in the
+// YAML file without touching the rest of the pipeline.
 func newGenerator(g config.Generator) (chatGenerator, error) {
+	if g.NeedsPrices() && !allowPaid {
+		return nil, fmt.Errorf("generator %s/%s is billed per token and may spend credits. Nothing was called. Add --allow-paid to run it on purpose", g.Provider, g.Model)
+	}
 	switch g.Provider {
 	case "ollama":
 		return generate.NewOllama(env("OLLAMA_URL", "http://localhost:11434"), g.Model, g.Temperature), nil
+	case "openai":
+		// Also reaches Azure OpenAI, GitHub Models, OpenRouter, vLLM, LM Studio...
+		// A local server may have no key at all.
+		key, err := apiKey(g, "OPENAI_API_KEY", g.NeedsPrices())
+		if err != nil {
+			return nil, err
+		}
+		return generate.NewOpenAI(g.BaseURL, key, g.Model, g.Temperature, g.PriceInputPerMTok, g.PriceOutputPerMTok), nil
 	case "anthropic":
-		// The key comes from the environment, never from a file in the repository.
-		key := os.Getenv("ANTHROPIC_API_KEY")
-		if key == "" {
-			return nil, errors.New("ANTHROPIC_API_KEY is not set")
+		key, err := apiKey(g, "ANTHROPIC_API_KEY", true)
+		if err != nil {
+			return nil, err
 		}
 		return generate.NewAnthropic(key, g.Model, g.Temperature, g.PriceInputPerMTok, g.PriceOutputPerMTok), nil
 	}
-	return nil, fmt.Errorf("generator provider %q is not implemented yet (use \"ollama\" or \"anthropic\")", g.Provider)
+	return nil, fmt.Errorf("generator provider %q is not implemented (use \"ollama\", \"openai\" or \"anthropic\")", g.Provider)
+}
+
+// apiKey reads the key from the environment, never from a file in the repository.
+func apiKey(g config.Generator, defaultVar string, required bool) (string, error) {
+	name := g.APIKeyEnv
+	if name == "" {
+		name = defaultVar
+	}
+	key := os.Getenv(name)
+	if key == "" && required {
+		return "", fmt.Errorf("%s is not set", name)
+	}
+	return key, nil
 }

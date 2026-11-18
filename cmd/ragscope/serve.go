@@ -16,6 +16,7 @@ import (
 
 func newServeCmd() *cobra.Command {
 	var cfgPath, addr string
+	var retrievalOnly bool
 
 	cmd := &cobra.Command{
 		Use:   "serve",
@@ -37,13 +38,15 @@ func newServeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var generator generate.Generator
-			generator, err = newGenerator(exp.Generator)
-			if err != nil {
-				return err
+			answerer := pipeline.Answerer{Retriever: retriever, K: exp.FinalK()}
+			if !retrievalOnly {
+				var generator generate.Generator
+				generator, err = newGenerator(exp.Generator)
+				if err != nil {
+					return err
+				}
+				answerer.Generator = generator
 			}
-
-			answerer := pipeline.Answerer{Retriever: retriever, Generator: generator, K: exp.FinalK()}
 			srv := &http.Server{
 				Addr:              addr,
 				Handler:           api.NewHandler(answerer),
@@ -73,6 +76,7 @@ func newServeCmd() *cobra.Command {
 	// expose it to the internet.
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "", "experiment config file")
 	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:8080", "listen address (local only by default)")
+	cmd.Flags().BoolVar(&retrievalOnly, "retrieval-only", false, "serve /api/search only: no generation model or key is needed, and /api/ask fails")
 	_ = cmd.MarkFlagRequired("config")
 	return cmd
 }

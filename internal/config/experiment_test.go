@@ -145,6 +145,32 @@ func TestRewriteAndProviderValidation(t *testing.T) {
 			wantErr: "price_input_per_mtok",
 		},
 		{
+			name:    "openai needs prices",
+			yaml:    strings.Replace(validYAML, "provider: ollama, model: llama3", "provider: openai, model: some-model", 1),
+			wantErr: "price_input_per_mtok",
+		},
+		{
+			name: "openai with prices",
+			yaml: strings.Replace(validYAML, "provider: ollama, model: llama3",
+				"provider: openai, model: some-model, price_input_per_mtok: 1, price_output_per_mtok: 5", 1),
+		},
+		{
+			name: "openai on this machine needs no prices",
+			yaml: strings.Replace(validYAML, "provider: ollama, model: llama3",
+				"provider: openai, model: some-model, base_url: http://localhost:1234/v1", 1),
+		},
+		{
+			name: "openai on another host still needs prices",
+			yaml: strings.Replace(validYAML, "provider: ollama, model: llama3",
+				"provider: openai, model: some-model, base_url: https://openrouter.ai/api/v1", 1),
+			wantErr: "price_input_per_mtok",
+		},
+		{
+			name:    "base_url is for openai only",
+			yaml:    strings.Replace(validYAML, "provider: ollama, model: llama3", "provider: ollama, model: llama3, base_url: http://x", 1),
+			wantErr: "base_url",
+		},
+		{
 			name: "anthropic with prices",
 			yaml: strings.Replace(validYAML, "provider: ollama, model: llama3",
 				"provider: anthropic, model: some-model, price_input_per_mtok: 1, price_output_per_mtok: 5", 1),

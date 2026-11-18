@@ -2,6 +2,7 @@
 
 This is how RAGscope works today, from the law text to the comparison table.
 The same diagram is in the [README](../README.md). If you change one, change both.
+To use RAGscope from an AI assistant, see [integrations](integrations.md).
 
 ```mermaid
 flowchart TB
@@ -16,8 +17,16 @@ flowchart TB
         EMB --> PG[("Postgres + pgvector<br/>one collection per index")]
     end
 
-    subgraph QRY["2. Query (ragscope ask, serve and eval)"]
-        WEB["Web page and POST /api/ask<br/>ragscope serve"] -->|"question"| Q["Question"]
+    subgraph ACC["2. Access (any AI, no vendor lock-in)"]
+        AI["Assistants and apps<br/>Claude, ChatGPT, Copilot,<br/>Cursor, scripts, any HTTP client"]
+        MCP["ragscope mcp<br/>MCP over stdio"]
+        HTTP["ragscope serve<br/>/api/search, /api/ask,<br/>/openapi.json, web page"]
+        AI -->|"MCP tools"| MCP
+        AI -->|"OpenAPI or plain HTTP"| HTTP
+    end
+
+    subgraph QRY["3. Query"]
+        Q["Question"]
         Q --> RW["Query rewriting, optional<br/>HyDE or multi-query"]
         RW --> MODE{"Retrieval mode"}
         MODE -->|"vector"| VEC["Cosine search<br/>in pgvector"]
@@ -29,13 +38,19 @@ flowchart TB
         TOP -->|"without reranker"| PROMPT
         TOP -->|"with reranker"| RR["Reranker<br/>bge-reranker-v2-m3"]
         RR --> PROMPT["Prompt<br/>numbered passages, cite as [n],<br/>SEM_RESPOSTA to refuse"]
-        PROMPT --> LLM["LLM<br/>Ollama, llama3.2:3b<br/>or Anthropic, hosted"]
+        PROMPT --> LLM{{"Generator, pluggable<br/>Ollama (local)<br/>OpenAI-compatible (hosted or local)<br/>Anthropic (hosted)"}}
         LLM -.->|"writes the rewrites"| RW
         LLM --> ANS["Answer with sources<br/>or a refusal"]
-        ANS -->|"answer and sources"| WEB
     end
 
-    subgraph EVAL["3. Evaluation"]
+    MCP -->|"search_lgpd, ask_lgpd"| Q
+    HTTP -->|"question"| Q
+    TOP -->|"search only:<br/>passages, no model"| MCP
+    TOP -->|"search only:<br/>passages, no model"| HTTP
+    ANS -->|"answer and sources"| MCP
+    ANS -->|"answer and sources"| HTTP
+
+    subgraph EVAL["4. Evaluation"]
         GOLD[("Golden set<br/>105 questions<br/>data/golden/questions.yaml")]
         GOLD -->|"every question"| Q
         TOP -->|"passages scored"| EV["ragscope eval<br/>hit rate, recall at k, MRR"]
@@ -64,8 +79,9 @@ flowchart TB
 | Query rewriting | Optional. **HyDE** asks the model for a short hypothetical passage and searches with the question plus that passage. **Multi-query** asks for several rephrasings, searches each one and merges the rankings with RRF. The experiment's own model does the rewriting. | `internal/retrieve/rewrite.go` |
 | Retrieval | Finds the chunks closest to the question: by meaning (vector), by words (BM25) or both merged with Reciprocal Rank Fusion. | `internal/retrieve` |
 | Reranker | A cross-encoder re-scores the candidates and keeps the best ones. It is the only stage that reads the question and the passage together. | `internal/rerank`, `scripts/rerank_server.py` |
-| Generation | Builds a prompt with numbered passages and asks the model to answer only from them, to cite them, and to say `SEM_RESPOSTA` when they do not contain the answer. The model is local (Ollama) or hosted (Anthropic, with cost counted per call). | `internal/generate` |
-| `serve` | A small HTTP server with `POST /api/ask` and a one-page web interface. It has no authentication, so it is for local use only. | `internal/api`, `internal/pipeline` |
+| Generation | Builds a prompt with numbered passages and asks the model to answer only from them, to cite them, and to say `SEM_RESPOSTA` when they do not contain the answer. The model is pluggable: local (Ollama), any server that speaks the OpenAI Chat Completions protocol (OpenAI, Azure, GitHub Models, OpenRouter, vLLM, LM Studio...) or Anthropic. Hosted calls have their cost counted. | `internal/generate` |
+| `serve` | A small HTTP server: `POST /api/search` (passages only, no model), `POST /api/ask` (answer with sources), `GET /openapi.json` and a one-page web interface. It has no authentication, so it is for local use only. | `internal/api`, `internal/pipeline` |
+| `mcp` | The same two operations as an MCP server over stdio, so Claude, Copilot, Cursor and other assistants can call RAGscope as a tool. With `--retrieval-only` no generation model is needed. | `internal/mcp` |
 | `eval` | Checks, for each golden question, where the evidence snippet shows up in the retrieved passages. No model is involved, so it is cheap and repeatable. | `internal/eval` |
 | `eval-answers` | Generates the answers and scores refusals (split by cause), citations, cost and, optionally, correctness against the reference answer and faithfulness to the passages, both judged by a model. | `internal/eval` |
 | `grade-sheet`, `calibrate` | The judge is a model, so it must be checked against a person. `grade-sheet` writes about 30 answers for you to grade, without showing the judge's verdicts. `calibrate` compares your grades with the judge's. | `internal/eval/calibration.go` |
@@ -77,7 +93,9 @@ flowchart TB
 - **A collection is named after what changes the index** (corpus, chunking, embedding model), not after the experiment. That is why `baseline`, `ablation-bm25`, `ablation-hyde` and `ablation-hybrid` need a single `ingest`.
 - **The golden set points to text, not to chunks.** Each question carries a literal snippet of the law, and a chunk counts as relevant if it contains it. Chunk ids change with every chunking strategy, snippets do not.
 - **A refusal is split by cause.** If the evidence was not among the passages, refusing was fair and the retriever is to blame. If it was there and the model refused anyway, the model was too timid. Counting both as "false refusal" hid this.
-- **Hosted models cannot report a zero cost by accident.** The config requires the prices per million tokens for a hosted provider, and the API key only comes from the environment.
+- **No vendor is required.** Generation is behind one interface with three adapters, chosen in the YAML. The default path (Ollama + pgvector) runs fully offline. The `openai` adapter speaks the de facto standard protocol, so one adapter reaches most hosted and self-hosted models.
+- **Assistants bring their own model.** `search` returns the evidence and calls no model, so ChatGPT, Copilot, Claude or any other assistant can write the answer itself. RAGscope is the retrieval and the benchmark, not a lock-in to one LLM. See [integrations](integrations.md).
+- **Hosted models cannot report a zero cost by accident.** The config requires the prices per million tokens for a hosted provider (a server on this machine is exempt), and the API key only comes from the environment.
 - **Vector search is exact**, with no ANN index. For a few thousand chunks it is fast, and it keeps the recall numbers free of index approximation.
 - **BM25 lives in memory**, built from the stored chunks. See [ADR 0001](adr/0001-bm25-implementation.md).
 - **Embeddings and answers run on Ollama**, on the host, so they can use the Mac GPU. The reranker is a small local Python server on Apple Silicon, because the TEI image only exists for x86.

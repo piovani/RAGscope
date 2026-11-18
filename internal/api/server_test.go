@@ -190,3 +190,130 @@ func TestAskerErrorIsNotLeaked(t *testing.T) {
 		t.Errorf("body = %q", got)
 	}
 }
+
+type searchAsker struct {
+	fakeAsker
+	chunks []domain.ScoredChunk
+	err    error
+	gotQ   string
+	gotK   int
+}
+
+func (f *searchAsker) Search(_ context.Context, q string, k int) ([]domain.ScoredChunk, error) {
+	f.gotQ, f.gotK = q, k
+	return f.chunks, f.err
+}
+
+func postTo(h http.Handler, path, body string) *httptest.ResponseRecorder {
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, path, strings.NewReader(body)))
+	return rec
+}
+
+func TestSearchReturnsNumberedPassages(t *testing.T) {
+	t.Parallel()
+
+	f := &searchAsker{chunks: []domain.ScoredChunk{
+		{Chunk: domain.Chunk{ID: "a", Text: "texto A", Metadata: map[string]string{"article": "5"}}, Score: 0.9},
+		{Chunk: domain.Chunk{ID: "b", Text: "texto B"}, Score: 0.4},
+	}}
+	rec := postTo(NewHandler(f), "/api/search", `{"query":" dado pessoal ","k":2}`)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body)
+	}
+	var got searchResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Sources) != 2 || got.Sources[0].N != 1 || got.Sources[1].N != 2 || got.Sources[0].Article != "5" {
+		t.Errorf("sources = %+v", got.Sources)
+	}
+	if f.gotQ != "dado pessoal" || f.gotK != 2 {
+		t.Errorf("searcher got %q, %d", f.gotQ, f.gotK)
+	}
+}
+
+func TestSearchClampsK(t *testing.T) {
+	t.Parallel()
+
+	for body, want := range map[string]int{
+		`{"query":"q"}`:          defaultSearchK,
+		`{"query":"q","k":-3}`:   defaultSearchK,
+		`{"query":"q","k":9999}`: maxSearchK,
+		`{"query":"q","k":7}`:    7,
+	} {
+		f := &searchAsker{}
+		if rec := postTo(NewHandler(f), "/api/search", body); rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d", body, rec.Code)
+		}
+		if f.gotK != want {
+			t.Errorf("%s: k = %d, want %d", body, f.gotK, want)
+		}
+	}
+}
+
+func TestSearchRejectsBadInput(t *testing.T) {
+	t.Parallel()
+
+	long := `{"query":"` + strings.Repeat("a", maxQuestionChars+1) + `"}`
+	for name, body := range map[string]string{"empty": `{"query":"  "}`, "bad json": `{`, "too long": long} {
+		rec := postTo(NewHandler(&searchAsker{}), "/api/search", body)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: status = %d, want 400", name, rec.Code)
+		}
+	}
+}
+
+func TestSearchErrorHidesCause(t *testing.T) {
+	t.Parallel()
+
+	rec := postTo(NewHandler(&searchAsker{err: errors.New("pg password=secret")}), "/api/search", `{"query":"q"}`)
+	if rec.Code != http.StatusInternalServerError || strings.Contains(rec.Body.String(), "secret") {
+		t.Errorf("status = %d, body = %s", rec.Code, rec.Body)
+	}
+}
+
+func TestSearchNotImplementedWithoutSearcher(t *testing.T) {
+	t.Parallel()
+
+	rec := postTo(NewHandler(&fakeAsker{}), "/api/search", `{"query":"q"}`)
+	if rec.Code != http.StatusNotImplemented {
+		t.Errorf("status = %d, want 501", rec.Code)
+	}
+}
+
+func TestSearchRejectsGet(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	NewHandler(&searchAsker{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/search", nil))
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("status = %d, want 405", rec.Code)
+	}
+}
+
+func TestOpenAPISpecIsValidAndCoversTheRoutes(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	NewHandler(&fakeAsker{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/openapi.json", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var spec struct {
+		OpenAPI string                    `json:"openapi"`
+		Paths   map[string]map[string]any `json:"paths"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &spec); err != nil {
+		t.Fatalf("spec is not JSON: %v", err)
+	}
+	if !strings.HasPrefix(spec.OpenAPI, "3.") {
+		t.Errorf("openapi = %q", spec.OpenAPI)
+	}
+	for _, path := range []string{"/api/search", "/api/ask", "/healthz"} {
+		if _, ok := spec.Paths[path]; !ok {
+			t.Errorf("spec is missing %s", path)
+		}
+	}
+}

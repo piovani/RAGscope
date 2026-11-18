@@ -1,0 +1,46 @@
+version: 2
+
+# Weekly (Saturdays 06:00 America/Sao_Paulo, same as the oracle project), grouped, so updates arrive as a few reviewable PRs instead of a flood.
+# CI (tests, lint, govulncheck, the BM25 regression gate) runs on each one.
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    groups:
+      go-minor-and-patch:
+        update-types: [minor, patch]
+    labels: [dependencies, go]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: [dependencies, ci]
+
+  - package-ecosystem: pip
+    directory: /scripts
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    labels: [dependencies, python]
+
+  - package-ecosystem: docker-compose
+    directory: /deployments
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    labels: [dependencies, docker]

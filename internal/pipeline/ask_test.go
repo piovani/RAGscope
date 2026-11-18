@@ -105,3 +105,16 @@ func TestAnswererRetrievalError(t *testing.T) {
 		t.Error("generator must not be called")
 	}
 }
+
+func TestAskWithoutGeneratorFailsInsteadOfPanicking(t *testing.T) {
+	t.Parallel()
+
+	a := Answerer{Retriever: fakeRetriever{chunks: []domain.ScoredChunk{scored("a")}}, K: 3}
+	if _, err := a.Ask(context.Background(), "q"); !errors.Is(err, ErrNoGenerator) {
+		t.Fatalf("err = %v, want ErrNoGenerator", err)
+	}
+	got, err := a.Search(context.Background(), "q", 0)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("search should still work: %v, %d", err, len(got))
+	}
+}

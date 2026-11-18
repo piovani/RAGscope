@@ -1,0 +1,116 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RAGscope",
+    "version": "1.0.0",
+    "description": "Search and question answering over the Brazilian data protection law (LGPD). Any assistant can use it: call /api/search to get the evidence and write the answer with your own model, or call /api/ask to let RAGscope's configured model answer. Cite passages by their number n."
+  },
+  "servers": [
+    { "url": "http://127.0.0.1:8080", "description": "Local. For a hosted assistant, replace it with the public HTTPS URL of your deployment." }
+  ],
+  "paths": {
+    "/api/search": {
+      "post": {
+        "operationId": "searchLaw",
+        "summary": "Find the passages of the law that best match a query. No model is called.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SearchRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Passages, best first.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SearchResponse" } } }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/ask": {
+      "post": {
+        "operationId": "askLaw",
+        "summary": "Answer a question using only the law, with cited passages. The answer is refused when the law does not cover it.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AskRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "The answer and the passages behind it.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AskResponse" } } }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "health",
+        "summary": "Liveness check.",
+        "responses": { "200": { "description": "ok" } }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Error": {
+        "description": "Something went wrong.",
+        "content": {
+          "application/json": {
+            "schema": { "type": "object", "properties": { "error": { "type": "string" } }, "required": ["error"] }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "SearchRequest": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "query": { "type": "string", "maxLength": 500, "description": "What to look for, in Portuguese." },
+          "k": { "type": "integer", "minimum": 1, "maximum": 20, "default": 5, "description": "How many passages to return." }
+        }
+      },
+      "AskRequest": {
+        "type": "object",
+        "required": ["question"],
+        "properties": {
+          "question": { "type": "string", "maxLength": 500, "description": "The question, in Portuguese." }
+        }
+      },
+      "Source": {
+        "type": "object",
+        "properties": {
+          "n": { "type": "integer", "description": "Position from 1. Matches the [n] citations in an answer." },
+          "id": { "type": "string" },
+          "article": { "type": "string", "description": "Article of the law, when known." },
+          "score": { "type": "number" },
+          "text": { "type": "string", "description": "The literal text of the passage." }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "properties": { "sources": { "type": "array", "items": { "$ref": "#/components/schemas/Source" } } }
+      },
+      "AskResponse": {
+        "type": "object",
+        "properties": {
+          "answer": { "type": "string" },
+          "refused": { "type": "boolean", "description": "True when the passages do not contain the answer." },
+          "sources": { "type": "array", "items": { "$ref": "#/components/schemas/Source" } },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "input_tokens": { "type": "integer" },
+              "output_tokens": { "type": "integer" },
+              "latency_ms": { "type": "integer" },
+              "cost_usd": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

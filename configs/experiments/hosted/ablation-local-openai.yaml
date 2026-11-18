@@ -1,0 +1,20 @@
+# A local server that speaks the OpenAI protocol (LM Studio, vLLM, llama.cpp,
+# LocalAI). No key and no prices: it runs on this machine, like Ollama.
+#
+#   ragscope eval-answers -c configs/experiments/hosted/ablation-local-openai.yaml --limit 20
+name: ablation-local-openai
+corpus: br-legislation-v1
+chunking:
+  strategy: structural
+  max_tokens: 512
+  overlap: 64
+embedding:
+  model: bge-m3
+retrieval:
+  mode: vector
+  k: 5
+generator:
+  provider: openai
+  base_url: http://localhost:1234/v1
+  model: local-model        # the name your server shows
+  temperature: 0

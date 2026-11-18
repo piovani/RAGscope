@@ -1,4 +1,4 @@
-.PHONY: help build test vet fmt tidy validate corpus up up-reranker rerank models down vuln lint clean
+.PHONY: help build test vet fmt tidy validate corpus mcp up up-reranker rerank models down vuln lint clean
 
 help:
 	@echo "Targets:"
@@ -9,6 +9,7 @@ help:
 	@echo "  tidy        go mod tidy"
 	@echo "  validate    Validate all experiment configs"
 	@echo "  corpus      Regenerate data/raw/lgpd.txt from data/sources"
+	@echo "  mcp         Serve RAGscope as an MCP tool over stdio (retrieval only)"
 	@echo "  up          Start Postgres (pgvector)"
 	@echo "  up-reranker Start the TEI reranker in Docker (x86 only)"
 	@echo "  rerank      Run the local reranker server (Apple Silicon; needs .venv)"
@@ -38,6 +39,10 @@ validate: build
 
 corpus: build
 	./bin/ragscope convert data/sources/L13709.html data/raw/lgpd.txt
+
+# For assistants that launch it themselves, see docs/integrations.md.
+mcp: build
+	./bin/ragscope mcp -c configs/experiments/baseline.yaml --retrieval-only
 
 up:
 	docker compose -f deployments/docker-compose.yml up -d

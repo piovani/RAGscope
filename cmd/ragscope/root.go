@@ -15,7 +15,10 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	root.PersistentFlags().BoolVar(&allowPaid, "allow-paid", false,
+		"allow generators that bill per token (hosted models). Off by default, so no credits are spent by accident")
 	root.AddCommand(newIngestCmd(), newAskCmd(), newEvalCmd(), newEvalAnswersCmd(), newGradeSheetCmd(), newCalibrateCmd(), newGoldenCmd(), newConvertCmd(), newServeCmd(), newReportCmd(), newValidateCmd())
+	root.AddCommand(newMCPCmd())
 	return root
 }
 
