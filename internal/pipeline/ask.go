@@ -25,12 +25,12 @@ type Answer struct {
 	Usage   generate.Usage
 }
 
-// Ask retrieves K passages and asks the generator. When nothing is retrieved
-// it refuses right away: calling the model with no context would only invite
-// an invented answer (and cost time).
 // ErrNoGenerator is returned by Ask when the Answerer was built for search only.
 var ErrNoGenerator = errors.New("no generation model is configured (retrieval-only mode)")
 
+// Ask retrieves K passages and asks the generator. When nothing is retrieved
+// it refuses right away: calling the model with no context would only invite
+// an invented answer (and cost time).
 func (a Answerer) Ask(ctx context.Context, question string) (Answer, error) {
 	if a.Generator == nil {
 		return Answer{}, ErrNoGenerator
